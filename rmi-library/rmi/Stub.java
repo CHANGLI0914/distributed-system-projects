@@ -21,6 +21,6 @@ public abstract class Stub
     public static <T> T create(Class<T> c, InetSocketAddress address)
     {
         InvocationHandler handler = new StubProxyHandler(address);
-        return (T) java.lang.reflect.Proxy.newProxyInstance(c.getClassLoader(), new Class[] {c}, handler);
+        return (T) java.lang.reflect.Proxy.newProxyInstance(c.getClassLoader(), new Class<?>[] {c}, handler);
     }
 }

@@ -16,25 +16,28 @@ public class StubProxyHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
-        String res = "";
+        Object res = null;
         Socket socket = null;
         try {
             socket = new Socket(address.getAddress(), address.getPort());
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            ObjectOutputStream outputStream = new ObjectOutputStream((socket.getOutputStream()));
+            outputStream.flush();
+            ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
 
-            StringBuilder msg = new StringBuilder();
-            msg.append(method.getName());
-            for (Object obj : objects) {
-                msg.append(" - ");
-                msg.append(obj.toString());
+            // Send call info
+            outputStream.writeObject(method.getName());
+            int parameterNum = objects.length;
+            outputStream.writeObject(parameterNum);
+            Class<?>[] parameterTypeArray = method.getParameterTypes();
+            for (int i=0; i<parameterNum; i++) {
+                outputStream.writeObject(parameterTypeArray[i]);
+                outputStream.writeObject(objects[i]);
             }
-            msg.append("[client]\n");
-            writer.write(msg.toString());
-            writer.flush();
+            outputStream.flush();
 
-            res = reader.readLine();
-        } catch (IOException e) {
+            // Receive result
+            res = inputStream.readObject();
+        } catch (Exception e) {
             e.printStackTrace();
         } finally {
             try {

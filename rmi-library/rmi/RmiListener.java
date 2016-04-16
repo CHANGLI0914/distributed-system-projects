@@ -4,11 +4,13 @@ import java.net.*;
 import java.io.*;
 
 
-public class RmiListener extends Thread{
+public class RmiListener<T> extends Thread{
 
+    protected T server;
     protected ServerSocket serverSocket;
 
-    public RmiListener(int port) throws IOException {
+    public RmiListener(T server, int port) throws IOException {
+        this.server = server;
         serverSocket = new ServerSocket(port);
     }
 
@@ -17,8 +19,8 @@ public class RmiListener extends Thread{
         while (true) {
             try {
                 Socket socket = serverSocket.accept();
-                System.out.println("New Conn:" + socket.toString());
-                (new Thread(new RmiHandler(socket))).run();
+                System.out.println("[Server] New Conn:" + socket.toString());
+                (new Thread(new RmiHandler<T>(server, socket))).start();
             } catch (IOException e) {
                 e.printStackTrace();
             }

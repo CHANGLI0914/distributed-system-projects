@@ -5,12 +5,12 @@ import java.io.*;
 
 public class Skeleton<T>
 {
-    RmiListener listener;
+    RmiListener<T> listener;
 
     public Skeleton(Class<T> c, T server)
     {
         try {
-            listener = new RmiListener(12345);
+            listener = new RmiListener<T>(server, 12345);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -36,11 +36,17 @@ public class Skeleton<T>
 
     public synchronized void start() throws RMIException
     {
-        listener.run();
+        listener.start();
     }
 
     public synchronized void stop()
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (listener != null && listener.isAlive()) {
+            try {
+                listener.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
