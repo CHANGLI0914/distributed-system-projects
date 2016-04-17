@@ -1,5 +1,5 @@
 package rmi;
 
 public interface Server {
-    String echo(String s);
+    String echo(String s) throws RMIException;
 }

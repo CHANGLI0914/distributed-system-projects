@@ -9,6 +9,10 @@ public class ClientTest {
         Server server = Stub.create(Server.class, address);
 
         System.out.println("Client said: " + "hi");
-        System.out.println("Server replied: " + server.echo("hi").toString());
+        try {
+            System.out.println("Server replied: " + server.echo("hi").toString());
+        } catch (RMIException re) {
+            re.printStackTrace();
+        }
     }
 }
