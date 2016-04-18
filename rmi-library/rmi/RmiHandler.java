@@ -7,12 +7,16 @@ import java.util.ArrayList;
 
 public class RmiHandler<T> implements Runnable {
 
-    protected T server;
-    protected Socket socket;
+    protected final Class<T> serverClass;
+    protected final T server;
+    protected final Socket socket;
+    protected final Skeleton<T> skeleton;
 
-    public RmiHandler(T server, Socket socket) {
+    public RmiHandler(Class<T> serverClass, T server, Socket socket, Skeleton<T> skeleton) {
+        this.serverClass = serverClass;
         this.server = server;
         this.socket = socket;
+        this.skeleton = skeleton;
     }
 
     @Override
@@ -34,7 +38,7 @@ public class RmiHandler<T> implements Runnable {
             }
 
             // Do method call
-            Method method = server.getClass().getMethod(methodName, parameterTypeList.toArray(new Class<?>[parameterNum]));
+            Method method = serverClass.getMethod(methodName, parameterTypeList.toArray(new Class<?>[parameterNum]));
             Object res = method.invoke(server, parameterValueList.toArray());
 
             // Write Back
@@ -43,6 +47,7 @@ public class RmiHandler<T> implements Runnable {
 
         } catch (Exception e) {
             e.printStackTrace();
+            skeleton.service_error(new RMIException("Handler Exception", e));
         } /*finally {
             if (!socket.isClosed()) {
                 try {

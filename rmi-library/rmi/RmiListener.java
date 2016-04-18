@@ -2,32 +2,41 @@ package rmi;
 
 import java.net.*;
 import java.io.*;
-
-/* For any exception catched here, should use functions in Skeleton to report. */
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RmiListener<T> extends Thread{
 
-    protected Skeleton<T> skeleton;
-    protected T server;
-    protected ServerSocket serverSocket;
-    protected boolean toStop;
+    protected final Skeleton<T> skeleton;
+    protected final Class<T> serverClass;
+    protected final T server;
+    protected final ServerSocket serverSocket;
+    protected final ExecutorService pool;
 
-    public RmiListener(Skeleton<T> skeleton, T server, ServerSocket socket) {
+    public RmiListener(Skeleton<T> skeleton, Class<T> serverClass, T server, ServerSocket socket) {
         this.skeleton = skeleton;
+        this.serverClass = serverClass;
         this.server = server;
         this.serverSocket = socket;
+        this.pool = Executors.newCachedThreadPool();
     }
 
     @Override
     public void run() {
-        while (!serverSocket.isClosed()) {
+        while (serverSocket!= null && !serverSocket.isClosed()) {
             try {
                 Socket socket = serverSocket.accept();
-                System.out.println("[Server] New Conn:" + socket.toString());
-                (new Thread(new RmiHandler<T>(server, socket))).start();
+                pool.execute(new RmiHandler<T>(serverClass, server, socket, skeleton));
+            } catch (SocketException se) {
+                // Should only appear when Skeleton close the server socket
+                System.out.println("Catched SocketException in Listener.");
+                se.printStackTrace();
+                break;
             } catch (IOException e) {
                 e.printStackTrace();
+                skeleton.listen_error(e);
             }
         }
+        pool.shutdown();
     }
 }
