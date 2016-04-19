@@ -43,7 +43,10 @@ public class Skeleton<T>
 
     protected void stopped(Throwable cause)
     {
-        System.out.println("Stopped");
+        System.out.println("Stopped:");
+        if (cause != null) {
+            cause.printStackTrace();
+        }
     }
 
     protected boolean listen_error(Exception exception)

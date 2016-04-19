@@ -8,7 +8,7 @@ public class ClientTest {
         InetSocketAddress address = new InetSocketAddress("localhost", 12345);
         Server server = Stub.create(Server.class, address);
 
-        System.out.println("Client said: " + "hi");
+        System.out.println("Client said: " + "hi" + server.toString());
         try {
             System.out.println("Server replied: " + server.echo("hi").toString());
         } catch (RMIException re) {

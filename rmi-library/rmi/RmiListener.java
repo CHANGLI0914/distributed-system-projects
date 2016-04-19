@@ -26,6 +26,7 @@ public class RmiListener<T> extends Thread{
         while (serverSocket!= null && !serverSocket.isClosed()) {
             try {
                 Socket socket = serverSocket.accept();
+                System.out.println("New socket estabilished:" + socket.toString());
                 pool.execute(new RmiHandler<T>(serverClass, server, socket, skeleton));
             } catch (SocketException se) {
                 // Should only appear when Skeleton close the server socket
