@@ -23,12 +23,9 @@ public class RmiHandler<T> implements Runnable {
     public void run() {
         System.out.print("[Server] New handler for " + socket.toString() + "starts!\n");
         try {
-            System.out.println("#This#" + this.getClass().toString());
             ObjectOutputStream outputStream = new ObjectOutputStream((socket.getOutputStream()));
             outputStream.flush();
-            System.out.println("#This#" + this.getClass().toString());
             ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
-            System.out.println("#This#" + this.getClass().toString());
 
             // Get call info (this part is not so safe, need to add more check)
             String methodName = (String) inputStream.readObject();
