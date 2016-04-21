@@ -8,19 +8,38 @@ public class Skeleton<T>
 {
     protected final Class<T> serverClass;
     protected final T serverObject;
-    protected final InetSocketAddress socketAddress;
+    protected InetSocketAddress socketAddress;
     protected ServerSocket serverSocket;
     protected RmiListener<T> listener;
+    protected boolean isRunning=false;
 
     public Skeleton(Class<T> c, T server)
     {
-        this(c, server, null);
+        if (c == null || server == null) {
+            throw new NullPointerException();
+        }
+
+        // Remote Interface c check
+        for (Method m : c.getMethods()) {
+            boolean throwRmiException = false;
+            for (Class<?> exp : m.getExceptionTypes()) {
+                if (exp.equals(RMIException.class)) {
+                    throwRmiException = true;
+                    break;
+                }
+            }
+            if (!throwRmiException) throw new Error("Illegal interface");
+        }
+
+        this.serverClass = c;
+        this.serverObject = server;
+        this.socketAddress = null;
     }
 
     public Skeleton(Class<T> c, T server, InetSocketAddress socketAddress)
     {
         // Input null pointer check
-        if (c == null || server == null) {
+        if (c == null || server == null||socketAddress==null) {
             throw new NullPointerException();
         }
 
@@ -63,7 +82,10 @@ public class Skeleton<T>
     protected InetSocketAddress getSocketAddress() {
         return socketAddress;
     }
-
+    
+    public Boolean socketAddressexisted(){
+    	return socketAddress!=null;
+    }
     public synchronized void start() throws RMIException
     {
         // Test if has already started
@@ -75,6 +97,9 @@ public class Skeleton<T>
         // Create new ServerSocket and bind
         try {
             serverSocket = new ServerSocket();
+            if(socketAddress==null){
+            	socketAddress=new InetSocketAddress(7000);
+            }
             serverSocket.bind(socketAddress);
         } catch (IOException ioe) {
             serverSocket = null;

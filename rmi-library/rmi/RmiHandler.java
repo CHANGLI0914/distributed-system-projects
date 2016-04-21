@@ -30,8 +30,8 @@ public class RmiHandler<T> implements Runnable {
             // Get call info (this part is not so safe, need to add more check)
             String methodName = (String) inputStream.readObject();
             int parameterNum = (Integer) inputStream.readObject();
-            ArrayList<Class<?>> parameterTypeList = new ArrayList<>();
-            ArrayList<Object> parameterValueList = new ArrayList<>();
+            ArrayList<Class<?>> parameterTypeList = new ArrayList<Class<?>>();
+            ArrayList<Object> parameterValueList = new ArrayList<Object>();
             for (int i=0; i<parameterNum; i++) {
                 parameterTypeList.add((Class<?>) inputStream.readObject());
                 parameterValueList.add(inputStream.readObject());

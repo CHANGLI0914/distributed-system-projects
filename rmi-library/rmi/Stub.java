@@ -30,6 +30,7 @@ public abstract class Stub
         return true;    // Success
     }
 
+    //TODO:here is question! when no address was input, what should do. If skeleton is not bound an address as well
     public static <T> T create(Class<T> c, Skeleton<T> skeleton) throws UnknownHostException
     {
         if (c == null || skeleton == null) {
@@ -40,6 +41,7 @@ public abstract class Stub
         }
         InetSocketAddress inetSocketAddress = skeleton.getSocketAddress();
         if (inetSocketAddress == null) {
+
             throw new IllegalStateException();
         }
         // TODO: What's this ?

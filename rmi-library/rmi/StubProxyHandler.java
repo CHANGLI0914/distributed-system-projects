@@ -3,6 +3,7 @@ package rmi;
 import java.io.*;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
@@ -20,14 +21,39 @@ public class StubProxyHandler implements InvocationHandler {
     public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
         Object res = null;
         Socket socket = null;
-
-        // Implement equals() TODO: NO finished && IS THIS CORRECT ?
+        
         if (method.equals(Object.class.getMethod("equals", Object.class))) {
-            Object target = objects[0];
-            //if (target instanceof )
-        }
+        	Object target =objects[0];
+        	if(target==null){
+        		return false;
+        	}
+        	StubProxyHandler s1=(StubProxyHandler)Proxy.getInvocationHandler(target);
+        	
+        	if(s1.address==null^this.address==null){
 
-        try {
+        		return false;
+        	}
+        	if(s1.address!=null)
+        		if(s1.address.getPort()!=this.address.getPort()||s1.address.getAddress()!=this.address.getAddress()){
+        			return false;
+        		}
+        	if(!this.remoteClass.equals(s1.remoteClass)){
+
+        		return false;
+        	}
+
+        		return true;
+            
+        }
+        else if (method.getName().equals("hashCode")) {
+        	int ret= this.address.hashCode() ^this.remoteClass.hashCode();  
+        	return ret;
+        }
+        else  if (method.getName().equals("toString")) {
+        	return this.address.toString() +this.remoteClass.toString();
+        }
+        else{
+        	try {
             socket = new Socket(address.getAddress(), address.getPort());
             ObjectOutputStream outputStream = new ObjectOutputStream((socket.getOutputStream()));
             outputStream.flush();
@@ -58,4 +84,16 @@ public class StubProxyHandler implements InvocationHandler {
             return res;
         }
     }
+
+    }
+    public int hashCode(){
+    	return this.address.hashCode() ^this.remoteClass.hashCode();
+
+    }
+    public String toString(){  	
+    	System.out.println("Name of remote interface is "+ this.remoteClass.getName());
+    	System.out.println("remote address: hostname: " + this.address.getHostName()+" port:" +this.address.getPort()); 
+    	return "";
+    }
+
 }
