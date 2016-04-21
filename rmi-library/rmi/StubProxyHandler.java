@@ -54,36 +54,36 @@ public class StubProxyHandler implements InvocationHandler {
         }
         else{
         	try {
-            socket = new Socket(address.getAddress(), address.getPort());
-            ObjectOutputStream outputStream = new ObjectOutputStream((socket.getOutputStream()));
-            outputStream.flush();
-            ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
-            // Send call info
-            outputStream.writeObject(method.getName());
-            int parameterNum = objects.length;
-            outputStream.writeObject(parameterNum);
-            Class<?>[] parameterTypeArray = method.getParameterTypes();
-            for (int i=0; i<parameterNum; i++) {
-                outputStream.writeObject(parameterTypeArray[i]);
-                outputStream.writeObject(objects[i]);
-            }
-            outputStream.flush();
-
-            // Receive result
-            res = inputStream.readObject();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (socket != null && !socket.isClosed()) {
-                    socket.close();
+                socket = new Socket(address.getAddress(), address.getPort());
+                ObjectOutputStream outputStream = new ObjectOutputStream((socket.getOutputStream()));
+                outputStream.flush();
+                ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
+                // Send call info
+                outputStream.writeObject(method.getName());
+                int parameterNum = objects.length;
+                outputStream.writeObject(parameterNum);
+                Class<?>[] parameterTypeArray = method.getParameterTypes();
+                for (int i=0; i<parameterNum; i++) {
+                    outputStream.writeObject(parameterTypeArray[i]);
+                    outputStream.writeObject(objects[i]);
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
+                outputStream.flush();
+
+                // Receive result
+                res = inputStream.readObject();
+                return res;
+            } catch (Exception e) {
+                throw new RMIException(e);
+            } finally {
+                try {
+                    if (socket != null && !socket.isClosed()) {
+                        socket.close();
+                    }
+                } catch (IOException e) {
+                    throw new RMIException(e);
+                }
             }
-            return res;
         }
-    }
 
     }
     public int hashCode(){
