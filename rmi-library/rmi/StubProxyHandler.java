@@ -60,6 +60,7 @@ public class StubProxyHandler implements InvocationHandler {
 
                 // Send call info
                 outputStream.writeObject(method.getName());
+              if(objects!=null){
                 int parameterNum = objects.length;
                 outputStream.writeObject(parameterNum);
                 Class<?>[] parameterTypeArray = method.getParameterTypes();
@@ -67,7 +68,12 @@ public class StubProxyHandler implements InvocationHandler {
                     outputStream.writeObject(parameterTypeArray[i]);
                     outputStream.writeObject(objects[i]);
                 }
+              }
+              else{
+            	  outputStream.writeObject((int)0);
+              }
                 outputStream.flush();
+              
 
                 // Receive result
                 callSuccess = (Boolean) inputStream.readObject();
