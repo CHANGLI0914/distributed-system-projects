@@ -19,10 +19,9 @@ public class StubProxyHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
-        Object res = null;
         Socket socket = null;
-        
         if (method.equals(Object.class.getMethod("equals", Object.class))) {
+            // Implement function: equals()
         	Object target =objects[0];
         	if(target==null){
         		return false;
@@ -30,34 +29,35 @@ public class StubProxyHandler implements InvocationHandler {
         	StubProxyHandler s1=(StubProxyHandler)Proxy.getInvocationHandler(target);
         	
         	if(s1.address==null^this.address==null){
-
         		return false;
         	}
         	if(s1.address!=null)
-        		if(s1.address.getPort()!=this.address.getPort()||s1.address.getAddress()!=this.address.getAddress()){
+        		if(s1.address.getPort() != this.address.getPort() ||
+                        !s1.address.getAddress().equals(this.address.getAddress())){
         			return false;
         		}
         	if(!this.remoteClass.equals(s1.remoteClass)){
-
         		return false;
         	}
+            return true;
 
-        		return true;
-            
-        }
-        else if (method.getName().equals("hashCode")) {
-        	int ret= this.address.hashCode() ^this.remoteClass.hashCode();  
-        	return ret;
-        }
-        else  if (method.getName().equals("toString")) {
-        	return this.address.toString() +this.remoteClass.toString();
-        }
-        else{
+        } else if (method.equals(Object.class.getMethod("hashCode"))) {
+            // Implement function: hashcode()
+        	return this.address.hashCode() ^ this.remoteClass.hashCode();
+
+        } else if (method.equals(Object.class.getMethod("toString"))) {
+            // Implement function: toString()
+        	return this.address.toString() + this.remoteClass.toString();
+
+        } else {
+            boolean callSuccess = false;
+            Object response = null;
         	try {
                 socket = new Socket(address.getAddress(), address.getPort());
                 ObjectOutputStream outputStream = new ObjectOutputStream((socket.getOutputStream()));
                 outputStream.flush();
                 ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
+
                 // Send call info
                 outputStream.writeObject(method.getName());
                 int parameterNum = objects.length;
@@ -70,8 +70,9 @@ public class StubProxyHandler implements InvocationHandler {
                 outputStream.flush();
 
                 // Receive result
-                res = inputStream.readObject();
-                return res;
+                callSuccess = (Boolean) inputStream.readObject();
+                response = inputStream.readObject();
+
             } catch (Exception e) {
                 throw new RMIException(e);
             } finally {
@@ -82,6 +83,15 @@ public class StubProxyHandler implements InvocationHandler {
                 } catch (IOException e) {
                     throw new RMIException(e);
                 }
+            }
+
+            if (callSuccess) {
+                // If call succeed, just return the result
+                return response;
+            }else {
+                // If call failed in server, throw the same exception
+                Throwable exception = (Throwable)response;
+                throw exception.getCause();
             }
         }
 

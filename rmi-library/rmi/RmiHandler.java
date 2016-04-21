@@ -21,7 +21,7 @@ public class RmiHandler<T> implements Runnable {
 
     @Override
     public void run() {
-        System.out.print("[Server] New handler for " + socket.toString() + "starts!\n");
+        //System.out.print("[Server] New handler for " + socket.toString() +"starts!\n");
         try {
             ObjectOutputStream outputStream = new ObjectOutputStream((socket.getOutputStream()));
             outputStream.flush();
@@ -39,14 +39,21 @@ public class RmiHandler<T> implements Runnable {
 
             // Do method call
             Method method = serverClass.getMethod(methodName, parameterTypeList.toArray(new Class<?>[parameterNum]));
-            Object res = method.invoke(server, parameterValueList.toArray());
+            Object res = null;
+            boolean callSuccess = true;
+            try {
+                res = method.invoke(server, parameterValueList.toArray());
+            } catch (Exception call_e) {
+                callSuccess = false;
+                res = call_e;
+            }
 
-            // Write Back
+            // Send back result/exception
+            outputStream.writeObject(callSuccess);
             outputStream.writeObject(res);
             outputStream.flush();
 
         } catch (Exception e) {
-            e.printStackTrace();
             skeleton.service_error(new RMIException("Handler Exception", e));
         } /*finally {
             if (!socket.isClosed()) {

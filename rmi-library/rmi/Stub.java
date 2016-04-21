@@ -41,7 +41,6 @@ public abstract class Stub
         }
         InetSocketAddress inetSocketAddress = skeleton.getSocketAddress();
         if (inetSocketAddress == null) {
-
             throw new IllegalStateException();
         }
         // TODO: What's this ?
