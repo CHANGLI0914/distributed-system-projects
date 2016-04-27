@@ -7,7 +7,7 @@ import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
-public class StubProxyHandler implements InvocationHandler {
+public class StubProxyHandler implements InvocationHandler, Serializable {
 
     protected Class<?> remoteClass;
     protected InetSocketAddress address;
