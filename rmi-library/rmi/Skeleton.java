@@ -222,12 +222,7 @@ public class Skeleton<T>
     public synchronized void stop()
     {
         if (listener != null) {
-            try {
-                listener.toStop = true;
-                listener.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            listener.toStop = true;
         }
     }
 }
