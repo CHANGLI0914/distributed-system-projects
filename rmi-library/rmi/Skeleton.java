@@ -54,16 +54,7 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server)
     {
-        if (c == null || server == null) {
-            throw new NullPointerException();
-        }
-        if (!Stub.interfaceCkeck(c)) {
-            throw new Error("Illegal interface");
-        }
-
-        this.serverClass = c;
-        this.serverObject = server;
-        this.socketAddress = null;
+        this(c, server, null);
     }
 
     /** Creates a <code>Skeleton</code> with the given initial server address.
@@ -86,7 +77,7 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server, InetSocketAddress address)
     {
-        if (c == null || server == null||address==null) {
+        if (c == null || server == null) {
             throw new NullPointerException();
         }
         if (!Stub.interfaceCkeck(c)) {
@@ -222,7 +213,11 @@ public class Skeleton<T>
     public synchronized void stop()
     {
         if (listener != null) {
-            listener.toStop = true;
+            try {
+                serverSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

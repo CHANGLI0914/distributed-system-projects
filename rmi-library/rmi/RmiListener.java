@@ -28,13 +28,12 @@ public class RmiListener<T> extends Thread{
 
     @Override
     public void run() {
-        while (!toStop) {
+        while (true) {
             try {
-                serverSocket.setSoTimeout(9);
                 Socket socket = serverSocket.accept();
                 pool.execute(new RmiHandler<T>(serverClass, server, socket, skeleton));
-            } catch (SocketTimeoutException se) {
-                // Do nothing. Just enable the loop to check the "toStop" var
+            } catch (SocketException se) {
+                break;
             } catch (IOException e) {
                 if (!skeleton.listen_error(e)) {
                     exception = e;
@@ -45,11 +44,6 @@ public class RmiListener<T> extends Thread{
         }
 
         // All code below is to stop the listener and skeleton
-        try {
-            serverSocket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         pool.shutdown();
         try {
             pool.awaitTermination(1, TimeUnit.MINUTES);

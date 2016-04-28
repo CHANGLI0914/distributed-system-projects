@@ -27,7 +27,6 @@ public class StubProxyHandler implements InvocationHandler, Serializable {
         		return false;
         	}
         	StubProxyHandler s1=(StubProxyHandler)Proxy.getInvocationHandler(target);
-        	
         	if(s1.address==null^this.address==null){
         		return false;
         	}
@@ -60,20 +59,18 @@ public class StubProxyHandler implements InvocationHandler, Serializable {
 
                 // Send call info
                 outputStream.writeObject(method.getName());
-              if(objects!=null){
-                int parameterNum = objects.length;
-                outputStream.writeObject(parameterNum);
-                Class<?>[] parameterTypeArray = method.getParameterTypes();
-                for (int i=0; i<parameterNum; i++) {
-                    outputStream.writeObject(parameterTypeArray[i]);
-                    outputStream.writeObject(objects[i]);
-                }
-              }
-              else{
+                if(objects != null){
+                    int parameterNum = objects.length;
+                    outputStream.writeObject(parameterNum);
+                    Class<?>[] parameterTypeArray = method.getParameterTypes();
+                    for (int i=0; i<parameterNum; i++) {
+                        outputStream.writeObject(parameterTypeArray[i]);
+                        outputStream.writeObject(objects[i]);
+                    }
+                } else{
             	  outputStream.writeObject((int)0);
-              }
+                }
                 outputStream.flush();
-              
 
                 // Receive result
                 callSuccess = (Boolean) inputStream.readObject();
