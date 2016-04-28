@@ -4,6 +4,7 @@ import java.net.*;
 import java.io.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class RmiListener<T> extends Thread{
 
@@ -26,18 +27,23 @@ public class RmiListener<T> extends Thread{
         while (serverSocket!= null && !serverSocket.isClosed()) {
             try {
                 Socket socket = serverSocket.accept();
-                //System.out.println("New socket estabilished:" + socket.toString());
                 pool.execute(new RmiHandler<T>(serverClass, server, socket, skeleton));
             } catch (SocketException se) {
                 // Should only appear when Skeleton close the server socket
-                System.out.println("Catched SocketException in Listener.");
-                se.printStackTrace();
                 break;
             } catch (IOException e) {
-                e.printStackTrace();
-                skeleton.listen_error(e);
+                if (!skeleton.listen_error(e)) {
+                    // How to stop the skeleton here ?
+                }
             }
         }
         pool.shutdown();
+        try {
+            // Wait until all Handler threads exit
+            pool.awaitTermination(1, TimeUnit.MINUTES);
+        } catch (InterruptedException ie) {
+            skeleton.listen_error(new RMIException("Interrupted when " +
+                    "waiting all handler threads exit.", ie));
+        }
     }
 }

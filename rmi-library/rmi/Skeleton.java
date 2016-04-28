@@ -1,6 +1,5 @@
 package rmi;
 
-import java.lang.reflect.Method;
 import java.net.*;
 import java.io.*;
 
@@ -120,9 +119,7 @@ public class Skeleton<T>
     protected void stopped(Throwable cause)
     {
         System.out.println("Stopped:");
-        if (cause != null) {
-            cause.printStackTrace();
-        }
+        if (cause != null) { cause.printStackTrace(); }
     }
 
     /** Called when an exception occurs at the top level in the listening
@@ -142,7 +139,8 @@ public class Skeleton<T>
      */
     protected boolean listen_error(Exception exception)
     {
-        System.out.println("listen_error");
+        System.out.println("listen_error: ");
+        exception.printStackTrace();
         return false;
     }
 
@@ -155,7 +153,8 @@ public class Skeleton<T>
      */
     protected void service_error(RMIException exception)
     {
-        System.out.println("server error");
+        System.out.println("server error: ");
+        exception.printStackTrace();
     }
 
     /** Starts the skeleton server.
@@ -225,7 +224,6 @@ public class Skeleton<T>
         // TODO: Stop listener, then wait all handler stop, finally call stopped and exit
         // Is exception handling here is right?
         if (serverSocket != null) {
-            assert listener == null;
             try {
                 serverSocket.close();
                 listener.join();
