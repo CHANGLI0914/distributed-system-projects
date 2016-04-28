@@ -13,6 +13,8 @@ public class RmiListener<T> extends Thread{
     protected final T server;
     protected final ServerSocket serverSocket;
     protected final ExecutorService pool;
+    protected boolean toStop;
+    protected Exception exception;
 
     public RmiListener(Skeleton<T> skeleton, Class<T> serverClass, T server, ServerSocket socket) {
         this.skeleton = skeleton;
@@ -20,30 +22,42 @@ public class RmiListener<T> extends Thread{
         this.server = server;
         this.serverSocket = socket;
         this.pool = Executors.newCachedThreadPool();
+        this.toStop = false;
+        this.exception = null;
     }
 
     @Override
     public void run() {
-        while (serverSocket!= null && !serverSocket.isClosed()) {
+        while (!toStop) {
             try {
+                serverSocket.setSoTimeout(9);
                 Socket socket = serverSocket.accept();
                 pool.execute(new RmiHandler<T>(serverClass, server, socket, skeleton));
-            } catch (SocketException se) {
-                // Should only appear when Skeleton close the server socket
-                break;
+            } catch (SocketTimeoutException se) {
+                // Do nothing. Just enable the loop to check the "toStop" var
             } catch (IOException e) {
                 if (!skeleton.listen_error(e)) {
-                    // How to stop the skeleton here ?
+                    exception = e;
+                    toStop = true;
+                    break;
                 }
             }
         }
+
+        // All code below is to stop the listener and skeleton
+        try {
+            serverSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         pool.shutdown();
         try {
-            // Wait until all Handler threads exit
             pool.awaitTermination(1, TimeUnit.MINUTES);
-        } catch (InterruptedException ie) {
-            skeleton.listen_error(new RMIException("Interrupted when " +
-                    "waiting all handler threads exit.", ie));
+        } catch (InterruptedException ex) {
+            ex.printStackTrace();
         }
+        skeleton.serverSocket = null;
+        skeleton.listener = null;
+        skeleton.stopped(exception);    //TODO: Here may be a problem
     }
 }

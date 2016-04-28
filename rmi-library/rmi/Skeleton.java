@@ -221,21 +221,12 @@ public class Skeleton<T>
      */
     public synchronized void stop()
     {
-        // TODO: Stop listener, then wait all handler stop, finally call stopped and exit
-        // Is exception handling here is right?
-        if (serverSocket != null) {
+        if (listener != null) {
             try {
-                serverSocket.close();
+                listener.toStop = true;
                 listener.join();
-            } catch (IOException ioe) {
-                System.out.println("NOTE: Shouldn't be able to catch IOexception here.");
-                ioe.printStackTrace();
             } catch (InterruptedException e) {
                 e.printStackTrace();
-            } finally {
-                serverSocket = null;
-                listener = null;
-                stopped(null);
             }
         }
     }
