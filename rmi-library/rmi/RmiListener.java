@@ -52,6 +52,6 @@ public class RmiListener<T> extends Thread{
         }
         skeleton.serverSocket = null;
         skeleton.listener = null;
-        skeleton.stopped(exception);    //TODO: Here may be a problem
+        skeleton.stopped(exception);
     }
 }
