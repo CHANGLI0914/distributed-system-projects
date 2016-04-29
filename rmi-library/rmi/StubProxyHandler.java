@@ -23,10 +23,14 @@ public class StubProxyHandler implements InvocationHandler, Serializable {
         if (method.equals(Object.class.getMethod("equals", Object.class))) {
             // Implement function: equals()
         	Object target =objects[0];
-        	if(target==null){
+        	if(target==null || !Proxy.isProxyClass(target.getClass())){
         		return false;
         	}
-        	StubProxyHandler s1=(StubProxyHandler)Proxy.getInvocationHandler(target);
+            InvocationHandler s0=Proxy.getInvocationHandler(target);
+            if (!(s0 instanceof StubProxyHandler)) {
+                return false;
+            }
+            StubProxyHandler s1 =(StubProxyHandler)s0;
         	if(s1.address==null^this.address==null){
         		return false;
         	}
