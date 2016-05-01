@@ -10,8 +10,14 @@ public class PingPongClient {
            ServerInterface stub1 = PingServerFactory.makePingServer(args);         
            System.out.println("Client start");
            try {
-        	   for(int i=0;i<3;i++)
-               System.out.println("Server replied: " + stub1.ping(i).toString());
+                int i =0;
+        	    for(i=0;i<4;i++) {
+                    String reply = stub1.ping(i).toString();
+                    System.out.println("Server replied: " + reply);
+                    if (!reply.equals("Pong"+i)) { break; }
+                }
+                System.out.println(i+" Tests Completed, "+
+                                    (4-i)+" Tests Failed");                        
 
            } catch (RMIException re) {
                re.printStackTrace();
