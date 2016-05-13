@@ -1,5 +1,6 @@
 package unit;
 
+import common.Path;
 import test.*;
 
 /** Runs all unit tests on distributed filesystem components.
@@ -18,7 +19,9 @@ public class UnitTests
         // Create the test list, the series object, and run the test series.
         @SuppressWarnings("unchecked")
         Class<? extends Test>[]     tests =
-            new Class[] {};
+            new Class[] {
+                    PathTest.class
+            };
         Series                      series = new Series(tests);
         SeriesReport                report = series.run(3, System.out);
 
