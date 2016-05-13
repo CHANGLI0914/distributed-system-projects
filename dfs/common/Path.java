@@ -22,8 +22,8 @@ import java.io.Serializable;
  */
 public class Path implements Iterable<String>, Comparable<Path>, Serializable
 {
-  private static final long serialVersionUID = 42L;
-  ArrayList<String> pathComponents;
+    private static final long serialVersionUID = 42L;
+    ArrayList<String> pathComponents;
 
     /** Creates a new path which represents the root directory. */
     public Path()
@@ -43,14 +43,15 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     public Path(Path path, String component)
     {
         // chekck the IllegalArgumentException
-        if (component == null || component.contains(":") || component.contains("/")) {
-          throw new IllegalArgumentException ("Invalid! Should not include separator, colon, or is empty");
+        if (component == null || component.isEmpty() || component.contains(":")
+                || component.contains("/")) {
+          throw new IllegalArgumentException ("Invalid! Should not include " +
+                  "separator, colon, or is empty");
         }
 
         pathComponents = new ArrayList<>();
         // add an existing path
-        pathComponents.addAll((Collection<String>) path.pathComponents);
-
+        pathComponents.addAll(path.pathComponents);
         // add new path component
         pathComponents.add(component);
     }
@@ -73,28 +74,32 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
           throw new IllegalArgumentException (" The path cannot be null!");
         }
         if (!path.startsWith("/") || path.contains(":")) {
-          throw new IllegalArgumentException ("Invalid! Please begin with a forward slash, and do not contain colon!");
+          throw new IllegalArgumentException ("Invalid! Please begin with a " +
+                  "forward slash, and do not contain colon!");
         }
 
         pathComponents = new ArrayList<>();
+        // TODO: if the input is "////", should we throw an exception?
         String[] tokens = path.split("/");
 
-      // Add the tockens to the path
-      for (String token : tokens) {
-          if (!token.isEmpty()) {
-              pathComponents.add(token);
-          }
-      }
-      /* we can also use
-      StringTokenizer st = new StringTokenizer(path,"/");
-      while (st.hasMoreTokens()) {
-      pathComponents.add(st.nextToken());
-      } */
+        // Add the tockens to the path
+        for (String token : tokens) {
+            if (!token.isEmpty()) {
+                pathComponents.add(token);
+            }
+        }
+
+        /* we can also use
+        StringTokenizer st = new StringTokenizer(path,"/");
+        while (st.hasMoreTokens()) {
+        pathComponents.add(st.nextToken());
+        } */
 
     }
 
     public Path(ArrayList<String> pathComponents) {
-    	this.pathComponents = pathComponents;
+        this.pathComponents = new ArrayList<>();
+    	this.pathComponents.addAll(pathComponents);
     }
 
     /** Returns an iterator over the components of the path.
@@ -112,26 +117,27 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     }
 
     private class PathIterator implements Iterator<String> {
-      private Iterator<String> iterator;
+        private Iterator<String> iterator;
 
-      public PathIterator (Iterator<String> iterator) {
-        this.iterator = iterator;
-      }
+        public PathIterator (Iterator<String> iterator) {
+            this.iterator = iterator;
+        }
 
-      @Override
-      public boolean hasNext() {
+        @Override
+        public boolean hasNext() {
         return iterator.hasNext();
       }
 
-      @Override
-      public String next() {
+        @Override
+        public String next() {
         return iterator.next();
       }
 
-      @Override
-      public void remove() {
-        throw new UnsupportedOperationException ("The iterator cannot be used to modify the path object");
-      }
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException ("The iterator cannot be " +
+                    "used to modify the path object");
+        }
 
     }
 
@@ -147,11 +153,14 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public static Path[] list(File directory) throws FileNotFoundException
     {
+        if (directory == null) {
+            throw new NullPointerException();
+        }
         if (!directory.exists()) {
-          throw new FileNotFoundException ("root directory does not exist!");
+            throw new FileNotFoundException ("root directory does not exist!");
         }
         if (!directory.isDirectory()) {
-          throw new IllegalArgumentException ("directory does not refer to a directory!");
+            throw new IllegalArgumentException ("directory does not refer to a directory!");
         }
 
         List<String> files = goList (directory, "");
@@ -160,24 +169,24 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
 
         int begin = directory.getName().length() + 1;
         for (int i = 0; i < len; i++) {
-          pathes[i] = new Path(files.get(i).substring(begin));
+            pathes[i] = new Path(files.get(i).substring(begin));
         }
         return pathes;
-
     }
 
     public static List<String> goList (File f, String s) {
-      List<String> getfile = new ArrayList<>();
+        List<String> getfile = new ArrayList<>();
 
-      if (f.isFile()) {
-        getfile.add (s + "/" + f.getName());
-      } else {
-        String p = s + "/" + f.getName();
-        for (File file : f.listFiles()) {
-          getfile.addAll (goList(file, p));
+        if (f.isFile()) {
+            getfile.add (s + "/" + f.getName());
+        } else if (f.isDirectory()) {
+            String p = s + "/" + f.getName();
+            for (File file : f.listFiles()) {
+                // TODO: Is this correct? Should we go down the tree?
+                getfile.addAll (goList(file, p));
+            }
         }
-      }
-      return getfile;
+        return getfile;
     }
 
     /** Determines whether the path represents the root directory.
@@ -198,7 +207,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     public Path parent()
     {
         if (this.isRoot()) {
-          throw new IllegalArgumentException ("root directory has no parent!");
+            throw new IllegalArgumentException ("root directory has no parent!");
         }
 
         ArrayList<String> parentpath = new ArrayList<>();
@@ -218,11 +227,11 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public String last()
     {
-      if (this.isRoot()) {
-        throw new IllegalArgumentException ("root directory has no parent!");
-      }
-      return pathComponents.get(pathComponents.size() - 1);
+        if (this.isRoot()) {
+            throw new IllegalArgumentException ("root directory has no parent!");
+        }
 
+        return pathComponents.get(pathComponents.size() - 1);
     }
 
     /** Determines if the given path is a subpath of this path.
@@ -237,18 +246,20 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public boolean isSubpath(Path other)
     {
+        if (other == null) { throw new NullPointerException(); }
+
         Iterator<String> otherIterator = other.iterator();
         Iterator<String> thisIterator  = this.iterator();
         //LinkedList<String> otherComponents = other.pathComponents;
         // check the length
         if (other.pathComponents.size() > pathComponents.size()) {
-          return false;
+            return false;
         }
         // check if equal
         while(otherIterator.hasNext()) {
-          if (!otherIterator.next().equals (thisIterator.next())) {
-            return false;
-          }
+            if (!otherIterator.next().equals (thisIterator.next())) {
+                return false;
+            }
         }
         return true;
     }
@@ -303,13 +314,17 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public int compareTo(Path other)
     {
+        // TODO: Not so sure if this is correct
+        return toString().compareTo(other.toString());
+        /*
         if (this.equals (other)) {
-          return 0;
+            return 0;
         } else if (!this.isSubpath (other)) {
             return 1;
         } else {
             return -1;
         }
+        */
     }
 
     /** Compares two paths for equality.
@@ -323,7 +338,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public boolean equals(Object other)
     {
-      return this.toString().equals(other.toString());
+        return this.toString().equals(other.toString());
     }
 
     /** Returns the hash code of the path. */
@@ -344,15 +359,16 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public String toString()
     {
-        String pathString = "";
+        StringBuilder pathString = new StringBuilder();
         if (this.isRoot()) {
-          pathString += "/";
-          return pathString;
+            pathString.append("/");
+            return pathString.toString();
         }
 
         for (String pc : pathComponents) {
-          pathString += "/" + pc;
+            pathString.append("/");
+            pathString.append(pc);
         }
-        return pathString;
+        return pathString.toString();
     }
 }
