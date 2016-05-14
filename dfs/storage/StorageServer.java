@@ -16,6 +16,11 @@ import naming.*;
  */
 public class StorageServer implements Storage, Command
 {
+
+    private final File root;
+    private final int clientPort;
+    private final int commandPort;
+
     /** Creates a storage server, given a directory on the local filesystem, and
         ports to use for the client and command interfaces.
 
@@ -33,7 +38,15 @@ public class StorageServer implements Storage, Command
     */
     public StorageServer(File root, int client_port, int command_port)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (root == null) throw new NullPointerException();
+        if (client_port < 0 || client_port > 65535 || command_port < 0 ||
+                command_port > 65535) {
+            throw new IllegalArgumentException("Illegal port number");
+        }
+
+        this.root = root;
+        this.clientPort = (client_port == 0) ? 7000 : client_port;
+        this.commandPort = (client_port == 0) ? 8000 : command_port;
     }
 
     /** Creats a storage server, given a directory on the local filesystem.
@@ -49,7 +62,7 @@ public class StorageServer implements Storage, Command
      */
     public StorageServer(File root)
     {
-        throw new UnsupportedOperationException("not implemented");
+        this(root, 0, 0);
     }
 
     /** Starts the storage server and registers it with the given naming
@@ -75,7 +88,7 @@ public class StorageServer implements Storage, Command
     public synchronized void start(String hostname, Registration naming_server)
         throws RMIException, UnknownHostException, FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        // throw new UnsupportedOperationException("not implemented");
     }
 
     /** Stops the storage server.
@@ -85,7 +98,7 @@ public class StorageServer implements Storage, Command
      */
     public void stop()
     {
-        throw new UnsupportedOperationException("not implemented");
+        // throw new UnsupportedOperationException("not implemented");
     }
 
     /** Called when the storage server has shut down.
@@ -101,34 +114,71 @@ public class StorageServer implements Storage, Command
     @Override
     public synchronized long size(Path file) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        File f = file.toFile(root);
+        if (!f.exists() || !f.isFile()) {
+            throw new FileNotFoundException();
+        }
+        return f.length();
     }
 
     @Override
     public synchronized byte[] read(Path file, long offset, int length)
         throws FileNotFoundException, IOException
     {
-        throw new UnsupportedOperationException("not implemented");
+        File f = file.toFile(root);
+        if (!f.exists() || !f.isFile()) {
+            throw new FileNotFoundException();
+        }
+        if (offset < 0 || length < 0 || offset+length > f.length()) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        byte[] buf = new byte[length];
+        FileInputStream is = new FileInputStream(f);
+        is.skip(offset);
+        is.read(buf);
+        is.close();
+
+        return buf;
     }
 
     @Override
     public synchronized void write(Path file, long offset, byte[] data)
         throws FileNotFoundException, IOException
     {
-        throw new UnsupportedOperationException("not implemented");
+        File f = file.toFile(root);
+        if (!f.exists() || !f.isFile()) {
+            throw new FileNotFoundException();
+        }
+        if (offset < 0) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        FileOutputStream os = new FileOutputStream(f, true);
+        os.getChannel().position(offset);
+        os.write(data);
+        os.flush();
+        os.close();
     }
 
     // The following methods are documented in Command.java.
     @Override
     public synchronized boolean create(Path file)
     {
-        throw new UnsupportedOperationException("not implemented");
+        File f = file.toFile(root);
+        try {
+            return f.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
     public synchronized boolean delete(Path path)
     {
-        throw new UnsupportedOperationException("not implemented");
+        File f = path.toFile(root);
+        return f.delete();
     }
 
     @Override

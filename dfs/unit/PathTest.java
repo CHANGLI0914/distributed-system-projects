@@ -1,36 +1,16 @@
 package unit;
 
 import common.Path;
-import test.Test;
 import test.TestFailed;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.HashSet;
 
 /**
  * Created by lichkkkk on 5/13/16.
  */
-public class PathTest extends Test {
-
-    private final String test_path = System.getProperty("user.dir")+"/dfs_test";
-    private File testDir = new File(test_path);
-    private File[] files = new File[5];
-
-    @Override
-    protected void initialize() throws TestFailed {
-        if (!testDir.mkdir()) {
-            throw new TestFailed("Can't create test directory.");
-        }
-        try {
-            for (int i = 0; i < 5; i++) {
-                files[i] = File.createTempFile("test-"+i+"-", ".txt", testDir);
-            }
-        } catch (IOException e) {
-            throw new TestFailed("Exception occured when creating files.", e);
-        }
-    }
+public class PathTest extends BaseUnitTest {
 
     @Override
     protected void perform() throws TestFailed{
@@ -93,14 +73,6 @@ public class PathTest extends Test {
         }
         if (path.compareTo(path) != 0) {
             throw new TestFailed("Path != self");
-        }
-    }
-
-    @Override
-    protected void clean() throws TestFailed {
-        for (File file : files) file.delete();
-        if (!testDir.delete()) {
-            throw new TestFailed("Can't remove test directory.");
         }
     }
 }
