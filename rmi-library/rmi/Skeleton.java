@@ -189,9 +189,12 @@ public class Skeleton<T>
         try {
             serverSocket = new ServerSocket();
             if(socketAddress==null){
-            	socketAddress = new InetSocketAddress(7000);
+                serverSocket = new ServerSocket(0);
+                socketAddress = new InetSocketAddress(serverSocket.getLocalPort());
+            } else {
+                serverSocket = new ServerSocket();
+                serverSocket.bind(socketAddress);
             }
-            serverSocket.bind(socketAddress);
         } catch (IOException ioe) {
             serverSocket = null;
             throw new RMIException("ServerSocket binding failed.", ioe);
