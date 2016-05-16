@@ -40,10 +40,6 @@ public class StorageServer implements Storage, Command
     public StorageServer(File root, int client_port, int command_port)
     {
         if (root == null) throw new NullPointerException();
-        if (client_port < 0 || client_port > 65535 ||
-                command_port < 0 || command_port > 65535) {
-            throw new IllegalArgumentException("Illegal port number");
-        }
 
         this.root = root;
 
@@ -104,17 +100,27 @@ public class StorageServer implements Storage, Command
         cmdSkeleton.start();
         storageSkeleton.start();
 
+
+        // Be careful. Path.list() may be changed later.
         Path[] fileExisted = Path.list(root);
+
         Path[] fileRedundant = naming_server.register(
                 Stub.create(Storage.class, storageSkeleton, hostname),
                 Stub.create(Command.class, cmdSkeleton, hostname),
                 fileExisted);
+
         for (Path path : fileRedundant) {
             delete(path);
         }
         deleteEmptyDirectory(root);
     }
 
+    /**
+     * Helper function to scan the whole local storage and delete all empty
+     * directories (except for the root).
+     *
+     * @param dir The root to start scan.
+     */
     private void deleteEmptyDirectory(File dir) {
 
         if (!dir.isDirectory()) return;
@@ -137,6 +143,7 @@ public class StorageServer implements Storage, Command
     {
         cmdSkeleton.stop();
         storageSkeleton.stop();
+        stopped(null);      // TODO: May not correct to call it here
     }
 
     /** Called when the storage server has shut down.
@@ -146,6 +153,7 @@ public class StorageServer implements Storage, Command
      */
     protected void stopped(Throwable cause)
     {
+        // TODO: Not sure where and how should we call this
     }
 
     // The following methods are documented in Storage.java.
@@ -192,6 +200,12 @@ public class StorageServer implements Storage, Command
             throw new IndexOutOfBoundsException();
         }
 
+        /**
+         * The second parameter of the below constructor means write in an
+         * "append mode" or not. If in the append mode, the position offset
+         * would be useless, but if not in the append mode, with an offset,
+         * the previous content of the file would be polluted?
+         */
         FileOutputStream os = new FileOutputStream(f, false);
         os.getChannel().position(offset);
         os.write(data);
@@ -212,6 +226,7 @@ public class StorageServer implements Storage, Command
         while (pathIterator.hasNext()) {
             File subDir = new File(dir, pathIterator.next());
             if (pathIterator.hasNext()) {
+                // create directories along the path
                 if (!subDir.exists()) {
                     if (subDir.mkdir()) {
                         dir = subDir;
@@ -224,6 +239,7 @@ public class StorageServer implements Storage, Command
                     dir = subDir;
                 }
             } else {
+                // create the file (the last component of the path)
                 try {
                     return subDir.createNewFile();
                 } catch (IOException ioe) {
@@ -248,6 +264,11 @@ public class StorageServer implements Storage, Command
         }
     }
 
+    /**
+     * Helper function to delete a directory recursively.
+     * @param dir   Directory to be deleted.
+     * @return      True if success, false otherwise.
+     */
     private boolean deleteDirectory(File dir) {
         for (File child : dir.listFiles()) {
             if (child.isFile()) {

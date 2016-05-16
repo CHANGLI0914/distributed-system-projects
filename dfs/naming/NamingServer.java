@@ -105,6 +105,9 @@ public class NamingServer implements Service, Registration
      */
     protected void stopped(Throwable cause)
     {
+        /**
+         * TODO: Not sure where and how should we call this method.
+         */
     }
 
     // The following public methods are documented in Service.java.
@@ -166,9 +169,22 @@ public class NamingServer implements Service, Registration
         }
 
         try {
+            /**
+             * Code here is a little bit ugly. When we need to create a new
+             * directory, we first create a temporary file under this
+             * directory and then delete it.
+             *
+             * The reason to do this is that the Command interface onlt
+             * permits us to create files instread of directories. (NOT SURE
+             * WHETHER I UNDERSTAND IT CORRECTLY)
+             *
+             * Additionally, if any RMIEXceptions are thrown during this
+             * process, an inconsistency might happen.
+             */
             Path childPath = new Path(directory, "tmp.txt");
             if (node.getCommand().create(childPath)) {
                 node.getCommand().delete(childPath);
+                node.addChild(directory.last(), false);
                 return true;
             } else {
                 return false;
@@ -221,6 +237,10 @@ public class NamingServer implements Service, Registration
         }
         serverTable.put(command_stub, client_stub);
 
+        /**
+         * Parameter files here should not contain any directory. But in some
+         * test cases they do contain some directories? Excuse me?
+         */
         List<Path> fileExisted = new ArrayList<>();
         for (Path path : files) {
             FileNode node = fileTree.findNode(path);
