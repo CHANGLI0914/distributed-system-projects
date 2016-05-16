@@ -59,7 +59,7 @@ public class FileNode {
      */
 
     public FileNode getChild(String childName) {
-        if (isFile) return null;
+        if (this.isFile) return null;
 
         for (FileNode node : children) {
             if (node.getName().equals(childName)) {
@@ -70,13 +70,13 @@ public class FileNode {
     }
 
     public boolean hasChild(String childName) {
-        if (isFile) return false;
+        if (this.isFile) return false;
 
         return getChild(childName) != null;
     }
 
     public FileNode addChild(String childName, boolean isFile) {
-        if (isFile || hasChild(childName)) {
+        if (this.isFile || hasChild(childName)) {
             return null;
         }
         FileNode child = new FileNode(childName, isFile, this);
@@ -85,26 +85,26 @@ public class FileNode {
     }
 
     public void deleteChild(String childName) {
-        if (isFile) return;
+        if (this.isFile) return;
 
         FileNode child = getChild(childName);
         if (child != null) children.remove(child);
     }
 
     public List<FileNode> children() {
-        if (isFile) return null;
+        if (this.isFile) return null;
 
         return children;
     }
 
     public String[] listChildren() {
-        if (isFile) return new String[0];
+        if (this.isFile) return new String[0];
 
         return children.toArray(new String[0]);
     }
 
     public int childrenSize() {
-        if (isFile) return 0;
+        if (this.isFile) return 0;
 
         return children.size();
     }

@@ -2,6 +2,7 @@ package storage;
 
 import java.io.*;
 import java.net.*;
+import java.util.Iterator;
 
 import common.*;
 import rmi.*;
@@ -110,10 +111,20 @@ public class StorageServer implements Storage, Command
                 fileExisted);
         for (Path path : fileRedundant) {
             delete(path);
-            File parent = path.parent().toFile(root);
-            if (parent.isDirectory() && parent.list().length == 0) {
-                parent.delete();
-            }
+        }
+        deleteEmptyDirectory(root);
+    }
+
+    private void deleteEmptyDirectory(File dir) {
+
+        if (!dir.isDirectory()) return;
+
+        for (File child : dir.listFiles()) {
+            deleteEmptyDirectory(child);
+        }
+
+        if (dir.list().length == 0 && !dir.equals(root)) {
+            dir.delete();
         }
     }
 
@@ -181,7 +192,7 @@ public class StorageServer implements Storage, Command
             throw new IndexOutOfBoundsException();
         }
 
-        FileOutputStream os = new FileOutputStream(f, true);
+        FileOutputStream os = new FileOutputStream(f, false);
         os.getChannel().position(offset);
         os.write(data);
         os.flush();
@@ -193,19 +204,59 @@ public class StorageServer implements Storage, Command
     public synchronized boolean create(Path file)
     {
         File f = file.toFile(root);
-        try {
-            return f.createNewFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
+        if (f.equals(root)) return false;
+
+        File dir = root;
+
+        Iterator<String> pathIterator = file.iterator();
+        while (pathIterator.hasNext()) {
+            File subDir = new File(dir, pathIterator.next());
+            if (pathIterator.hasNext()) {
+                if (!subDir.exists()) {
+                    if (subDir.mkdir()) {
+                        dir = subDir;
+                    } else {
+                        return false;
+                    }
+                } else if (!subDir.isDirectory()) {
+                    return false;
+                } else {
+                    dir = subDir;
+                }
+            } else {
+                try {
+                    return subDir.createNewFile();
+                } catch (IOException ioe) {
+                    ioe.printStackTrace();
+                    return false;
+                }
+            }
         }
+        throw new Error("Should never reach here");
     }
 
     @Override
     public synchronized boolean delete(Path path)
     {
         File f = path.toFile(root);
-        return f.delete();
+        if (f.equals(root)) return false;
+
+        if (!f.isDirectory()) {
+            return f.delete();
+        } else {
+            return deleteDirectory(f);
+        }
+    }
+
+    private boolean deleteDirectory(File dir) {
+        for (File child : dir.listFiles()) {
+            if (child.isFile()) {
+                if (!child.delete()) return false;
+            } else {
+                if (!deleteDirectory(child)) return false;
+            }
+        }
+        return dir.delete();
     }
 
     @Override

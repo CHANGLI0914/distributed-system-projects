@@ -91,6 +91,7 @@ public class NamingServer implements Service, Registration
     {
         regSkeleton.stop();
         serviceSkeleton.stop();
+        stopped(null);  // TODO: I think this is not correct
     }
 
     /** Indicates that the server has completely shut down.
@@ -178,6 +179,8 @@ public class NamingServer implements Service, Registration
     @Override
     public boolean delete(Path path) throws FileNotFoundException
     {
+        if (path.isRoot()) return false;
+
         FileNode node = fileTree.findNode(path);
         if (node == null) {
             throw new FileNotFoundException();
@@ -187,8 +190,11 @@ public class NamingServer implements Service, Registration
                 if (!command.delete(path)) {
                     return false;
                 }
+                node.deleteStorage(command);
             }
         } catch (RMIException re) { return false; }
+        node.getParent().deleteChild(node.getName());
+
         return true;
     }
 
@@ -219,11 +225,11 @@ public class NamingServer implements Service, Registration
         for (Path path : files) {
             FileNode node = fileTree.findNode(path);
             if (node == null) {
-                fileTree.addNode(path);
-            } else if (node.isDirectory()) {
-                throw new Error("Files in registration contains directory.");
+                fileTree.addNode(path, command_stub);
             } else {
-                fileExisted.add(path);
+                if (!node.isRoot()) {
+                    fileExisted.add(path);
+                }
             }
         }
         return fileExisted.toArray(new Path[0]);

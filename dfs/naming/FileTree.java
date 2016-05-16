@@ -1,6 +1,7 @@
 package naming;
 
 import common.Path;
+import storage.Command;
 
 import java.io.File;
 import java.util.Iterator;
@@ -34,23 +35,26 @@ public class FileTree {
         return node;
     }
 
-    public boolean addNode(Path path) {
+    public FileNode addNode(Path path, Command command) {
         FileNode node = root;
         Iterator<String> pathIterator = path.iterator();
         while (pathIterator.hasNext()) {
             String pathComponent = pathIterator.next();
             if (!node.isDirectory()) {
-                return false;
+                throw new Error("Conflict here.");
             }
             if (!node.hasChild(pathComponent)) {
                 if (pathIterator.hasNext()) {
-                    node.addChild(pathComponent, false);
+                    node = node.addChild(pathComponent, false);
+                    node.addCommand(command);
                 } else {
-                    node.addChild(pathComponent, true);
+                    node = node.addChild(pathComponent, true);
+                    node.addCommand(command);
                 }
+            } else {
+                node = node.getChild(pathComponent);
             }
-            node = node.getChild(pathComponent);
         }
-        return true;
+        return node;
     }
 }
