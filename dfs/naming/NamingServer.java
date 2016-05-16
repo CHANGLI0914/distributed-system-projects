@@ -33,6 +33,15 @@ import storage.*;
  */
 public class NamingServer implements Service, Registration
 {
+
+    private FileTree fileTree;
+
+    private Hashtable<Command, Storage> serverTable;
+
+    private Skeleton<Registration> regSkeleton;
+
+    private Skeleton<Service> serviceSkeleton;
+
     /** Creates the naming server object.
 
         <p>
@@ -40,7 +49,16 @@ public class NamingServer implements Service, Registration
      */
     public NamingServer()
     {
-        throw new UnsupportedOperationException("not implemented");
+        fileTree = FileTree.getTree();
+        serverTable = new Hashtable<>();
+
+        InetSocketAddress regAddress =
+                new InetSocketAddress(NamingStubs.REGISTRATION_PORT);
+        regSkeleton = new Skeleton<>(Registration.class, this, regAddress);
+
+        InetSocketAddress serviceAddress =
+                new InetSocketAddress(NamingStubs.SERVICE_PORT);
+        serviceSkeleton = new Skeleton<>(Service.class, this, serviceAddress);
     }
 
     /** Starts the naming server.
@@ -56,7 +74,8 @@ public class NamingServer implements Service, Registration
      */
     public synchronized void start() throws RMIException
     {
-        throw new UnsupportedOperationException("not implemented");
+        regSkeleton.start();
+        serviceSkeleton.start();
     }
 
     /** Stops the naming server.
@@ -70,7 +89,8 @@ public class NamingServer implements Service, Registration
      */
     public void stop()
     {
-        throw new UnsupportedOperationException("not implemented");
+        regSkeleton.stop();
+        serviceSkeleton.stop();
     }
 
     /** Indicates that the server has completely shut down.
@@ -102,38 +122,84 @@ public class NamingServer implements Service, Registration
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        FileNode node = fileTree.findNode(path);
+        if (node == null) {
+            throw new FileNotFoundException();
+        }
+        return node.isDirectory();
     }
 
     @Override
     public String[] list(Path directory) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        FileNode node = fileTree.findNode(directory);
+        if (node == null || !node.isDirectory()) {
+            throw new FileNotFoundException();
+        }
+        return node.listChildren();
     }
 
     @Override
     public boolean createFile(Path file)
         throws RMIException, FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (serverTable.isEmpty()) {
+            throw new IllegalStateException();
+        }
+        FileNode node = fileTree.findNode(file.parent());
+        if (node == null || !node.isDirectory()) {
+            throw new FileNotFoundException();
+        }
+        return node.getCommand().create(file);
     }
 
     @Override
     public boolean createDirectory(Path directory) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (serverTable.isEmpty()) {
+            throw new IllegalStateException();
+        }
+        FileNode node = fileTree.findNode(directory.parent());
+        if (node == null || !node.isDirectory()) {
+            throw new FileNotFoundException();
+        }
+
+        try {
+            Path childPath = new Path(directory, "tmp.txt");
+            if (node.getCommand().create(childPath)) {
+                node.getCommand().delete(childPath);
+                return true;
+            } else {
+                return false;
+            }
+        } catch (RMIException re) { return false; }
     }
 
     @Override
     public boolean delete(Path path) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        FileNode node = fileTree.findNode(path);
+        if (node == null) {
+            throw new FileNotFoundException();
+        }
+        try {
+            for (Command command : node.commands()) {
+                if (!command.delete(path)) {
+                    return false;
+                }
+            }
+        } catch (RMIException re) { return false; }
+        return true;
     }
 
     @Override
     public Storage getStorage(Path file) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        FileNode node = fileTree.findNode(file);
+        if (node == null) {
+            throw new FileNotFoundException();
+        }
+        return serverTable.get(node.getCommand());
     }
 
     // The method register is documented in Registration.java.
@@ -141,6 +207,25 @@ public class NamingServer implements Service, Registration
     public Path[] register(Storage client_stub, Command command_stub,
                            Path[] files)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (client_stub == null || command_stub == null || files == null) {
+            throw new NullPointerException();
+        }
+        if (serverTable.containsKey(command_stub)) {
+            throw new IllegalStateException();
+        }
+        serverTable.put(command_stub, client_stub);
+
+        List<Path> fileExisted = new ArrayList<>();
+        for (Path path : files) {
+            FileNode node = fileTree.findNode(path);
+            if (node == null) {
+                fileTree.addNode(path);
+            } else if (node.isDirectory()) {
+                throw new Error("Files in registration contains directory.");
+            } else {
+                fileExisted.add(path);
+            }
+        }
+        return fileExisted.toArray(new Path[0]);
     }
 }

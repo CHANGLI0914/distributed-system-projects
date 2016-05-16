@@ -18,8 +18,8 @@ public class StorageServer implements Storage, Command
 {
 
     private final File root;
-    private final int clientPort;
-    private final int commandPort;
+    private final Skeleton<Storage> storageSkeleton;
+    private final Skeleton<Command> cmdSkeleton;
 
     /** Creates a storage server, given a directory on the local filesystem, and
         ports to use for the client and command interfaces.
@@ -39,14 +39,26 @@ public class StorageServer implements Storage, Command
     public StorageServer(File root, int client_port, int command_port)
     {
         if (root == null) throw new NullPointerException();
-        if (client_port < 0 || client_port > 65535 || command_port < 0 ||
-                command_port > 65535) {
+        if (client_port < 0 || client_port > 65535 ||
+                command_port < 0 || command_port > 65535) {
             throw new IllegalArgumentException("Illegal port number");
         }
 
         this.root = root;
-        this.clientPort = (client_port == 0) ? 7000 : client_port;
-        this.commandPort = (client_port == 0) ? 8000 : command_port;
+
+        if (client_port != 0) {
+            storageSkeleton = new Skeleton<>(
+                    Storage.class, this, new InetSocketAddress(client_port));
+        } else {
+            storageSkeleton = new Skeleton<>(Storage.class, this);
+        }
+
+        if (command_port != 0) {
+            cmdSkeleton = new Skeleton<>(
+                    Command.class, this, new InetSocketAddress(command_port));
+        } else {
+            cmdSkeleton = new Skeleton<>(Command.class, this);
+        }
     }
 
     /** Creats a storage server, given a directory on the local filesystem.
@@ -88,7 +100,21 @@ public class StorageServer implements Storage, Command
     public synchronized void start(String hostname, Registration naming_server)
         throws RMIException, UnknownHostException, FileNotFoundException
     {
-        // throw new UnsupportedOperationException("not implemented");
+        cmdSkeleton.start();
+        storageSkeleton.start();
+
+        Path[] fileExisted = Path.list(root);
+        Path[] fileRedundant = naming_server.register(
+                Stub.create(Storage.class, storageSkeleton, hostname),
+                Stub.create(Command.class, cmdSkeleton, hostname),
+                fileExisted);
+        for (Path path : fileRedundant) {
+            delete(path);
+            File parent = path.parent().toFile(root);
+            if (parent.isDirectory() && parent.list().length == 0) {
+                parent.delete();
+            }
+        }
     }
 
     /** Stops the storage server.
@@ -98,7 +124,8 @@ public class StorageServer implements Storage, Command
      */
     public void stop()
     {
-        // throw new UnsupportedOperationException("not implemented");
+        cmdSkeleton.stop();
+        storageSkeleton.stop();
     }
 
     /** Called when the storage server has shut down.
