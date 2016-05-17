@@ -1,12 +1,19 @@
 package storage;
 
-import java.io.*;
-import java.net.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Iterator;
 
-import common.*;
-import rmi.*;
-import naming.*;
+import common.Path;
+import naming.Registration;
+import rmi.RMIException;
+import rmi.Skeleton;
+import rmi.Stub;
 
 /** Storage server.
 
@@ -101,7 +108,8 @@ public class StorageServer implements Storage, Command
         storageSkeleton.start();
 
 
-        // Be careful. Path.list() may be changed later.
+        // Be careful. Path.list() may be changed later. // TODO should be
+        // recursive?
         Path[] fileExisted = Path.list(root);
 
         Path[] fileRedundant = naming_server.register(
