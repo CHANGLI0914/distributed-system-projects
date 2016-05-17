@@ -74,7 +74,7 @@ public class FileNode {
      */
 
     public FileNode getChild(String childName) {
-        if (this.isFile) return null;
+        if (this.isFile) throw new IllegalAccessError();
 
         for (FileNode node : children) {
             if (node.getName().equals(childName)) {
@@ -85,7 +85,7 @@ public class FileNode {
     }
 
     public boolean hasChild(String childName) {
-        if (this.isFile) return false;
+        if (this.isFile) throw new IllegalAccessError();
 
         return getChild(childName) != null;
     }
@@ -95,11 +95,13 @@ public class FileNode {
      *
      * @param childName name of child node to be added
      * @param isFile is file or dorectory
-     * @return  the node added. If current node is a file (NOT A DIRECTORY),
-     *          or there is already a child with this name, null is returned.
+     * @return  the node added. If there is already a child with this name,
+     *          null is returned.
      */
     public FileNode addChild(String childName, boolean isFile) {
-        if (this.isFile || hasChild(childName)) {
+        if (this.isFile) throw new IllegalAccessError();
+
+        if (hasChild(childName)) {
             return null;
         }
         FileNode child = new FileNode(childName, isFile, this);
@@ -108,28 +110,48 @@ public class FileNode {
     }
 
     public void deleteChild(String childName) {
-        if (this.isFile) return;
+        if (this.isFile) throw new IllegalAccessError();
 
         FileNode child = getChild(childName);
         if (child != null) children.remove(child);
     }
 
     public List<FileNode> children() {
-        if (this.isFile) return null;
+        if (this.isFile) throw new IllegalAccessError();
 
         return children;
     }
 
     public String[] listChildren() {
-        if (this.isFile) return new String[0];
+        if (this.isFile) throw new IllegalAccessError();
 
-        return children.toArray(new String[0]);
+        String[] res = new String[children.size()];
+        for (int i=0; i<res.length; i++) {
+            res[i] = children.get(i).getName();
+        }
+        return res;
     }
 
     public int childrenSize() {
-        if (this.isFile) return 0;
+        if (this.isFile) throw new IllegalAccessError();
 
         return children.size();
+    }
+
+    /**
+     * Return all descendant file nodes (may include it self)
+     * @return  Array of file nodes
+     */
+    public List<FileNode> descendantFileNodes() {
+        List<FileNode> res = new ArrayList<>();
+        if (this.isFile) {
+            res.add(this);
+        } else {
+            for (FileNode node : children) {
+                res.addAll(node.descendantFileNodes());
+            }
+        }
+        return res;
     }
 
     /*
@@ -137,26 +159,36 @@ public class FileNode {
      */
 
     public int commandSize() {
+        if (!this.isFile) throw new IllegalAccessError();
+
         return commandList.size();
     }
 
     public void addCommand(Command command) {
+        if (!this.isFile) throw new IllegalAccessError();
+
         if (!commandList.contains(command)) {
             commandList.add(command);
         }
     }
 
     public Command getCommand() {
+        if (!this.isFile) throw new IllegalAccessError();
+
         // Just Pick the first one here
         if (commandList.isEmpty()) return null;
         else return commandList.get(0);
     }
 
     public void deleteStorage(Command command) {
+        if (!this.isFile) throw new IllegalAccessError();
+
         commandList.remove(command);
     }
 
     public List<Command> commands() {
+        if (!this.isFile) throw new IllegalAccessError();
+
         return commandList;
     }
 }

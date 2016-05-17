@@ -91,6 +91,7 @@ public class NamingServer implements Service, Registration
     {
         regSkeleton.stop();
         serviceSkeleton.stop();
+        fileTree.deleteAllNodes();
         stopped(null);  // TODO: I think this is not correct
     }
 
@@ -143,6 +144,10 @@ public class NamingServer implements Service, Registration
         return node.listChildren();
     }
 
+    private Command pickOneCommand() {
+        return serverTable.keys().nextElement();
+    }
+
     @Override
     public boolean createFile(Path file)
         throws RMIException, FileNotFoundException
@@ -150,11 +155,26 @@ public class NamingServer implements Service, Registration
         if (serverTable.isEmpty()) {
             throw new IllegalStateException();
         }
+        if (file.isRoot()) {
+            return false;
+        }
+
         FileNode node = fileTree.findNode(file.parent());
         if (node == null || !node.isDirectory()) {
             throw new FileNotFoundException();
         }
-        return node.getCommand().create(file);
+        if (node.hasChild(file.last())) {
+            return false;
+        }
+
+        Command storageServer = pickOneCommand();
+        if(storageServer.create(file)) {
+            FileNode fileCreated = node.addChild(file.last(), true);
+            fileCreated.addCommand(storageServer);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     @Override
@@ -163,11 +183,22 @@ public class NamingServer implements Service, Registration
         if (serverTable.isEmpty()) {
             throw new IllegalStateException();
         }
+        if (directory.isRoot()) {
+            return false;
+        }
+
         FileNode node = fileTree.findNode(directory.parent());
         if (node == null || !node.isDirectory()) {
             throw new FileNotFoundException();
         }
 
+        if (node.hasChild(directory.last())) {
+            return false;
+        } else {
+            node.addChild(directory.last(), false);
+            return true;
+        }
+/*
         try {
             /**
              * Code here is a little bit ugly. When we need to create a new
@@ -181,15 +212,17 @@ public class NamingServer implements Service, Registration
              * Additionally, if any RMIEXceptions are thrown during this
              * process, an inconsistency might happen.
              */
-            Path childPath = new Path(directory, "tmp.txt");
+  /*          Path childPath = new Path(directory, "tmp.txt");
             if (node.getCommand().create(childPath)) {
                 node.getCommand().delete(childPath);
-                node.addChild(directory.last(), false);
+                FileNode child = node.addChild(directory.last(), false);
+                child.addCommand(node.getCommand());
                 return true;
             } else {
                 return false;
             }
         } catch (RMIException re) { return false; }
+    */
     }
 
     @Override
@@ -201,14 +234,23 @@ public class NamingServer implements Service, Registration
         if (node == null) {
             throw new FileNotFoundException();
         }
+
+        /**
+         * Just delete all descendant files, as we assume the storage server
+         * would delete all empty directories automatically.
+         */
         try {
-            for (Command command : node.commands()) {
-                if (!command.delete(path)) {
-                    return false;
+            for (FileNode file : node.descendantFileNodes()) {
+                for (Command command : file.commands()) {
+                    if (!command.delete(path)) {
+                        return false;
+                    }
+                    node.deleteStorage(command);
                 }
-                node.deleteStorage(command);
+                file.getParent().deleteChild(file.getName());
             }
         } catch (RMIException re) { return false; }
+
         node.getParent().deleteChild(node.getName());
 
         return true;
@@ -218,7 +260,7 @@ public class NamingServer implements Service, Registration
     public Storage getStorage(Path file) throws FileNotFoundException
     {
         FileNode node = fileTree.findNode(file);
-        if (node == null) {
+        if (node == null || node.isDirectory()) {
             throw new FileNotFoundException();
         }
         return serverTable.get(node.getCommand());

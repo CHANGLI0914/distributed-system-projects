@@ -18,7 +18,7 @@ public class FileTree {
 
     private static FileTree tree;
 
-    private final FileNode root;
+    private FileNode root;
 
     private FileTree() {
         root = new FileNode("", false, null);
@@ -35,6 +35,14 @@ public class FileTree {
             tree = new FileTree();
         }
         return tree;
+    }
+
+    public FileNode getRoot() {
+        return root;
+    }
+
+    public void deleteAllNodes() {
+        root = new FileNode("", false, null);
     }
 
     /**
@@ -77,7 +85,6 @@ public class FileTree {
             if (!node.hasChild(pathComponent)) {
                 if (pathIterator.hasNext()) {
                     node = node.addChild(pathComponent, false);
-                    node.addCommand(command);
                 } else {
                     node = node.addChild(pathComponent, true);
                     node.addCommand(command);

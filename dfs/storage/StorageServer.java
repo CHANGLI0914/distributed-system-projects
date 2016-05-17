@@ -257,11 +257,23 @@ public class StorageServer implements Storage, Command
         File f = path.toFile(root);
         if (f.equals(root)) return false;
 
+        boolean success;
         if (!f.isDirectory()) {
-            return f.delete();
+            success = f.delete();
         } else {
-            return deleteDirectory(f);
+            success = deleteDirectory(f);
         }
+
+        // Always delete empty directories
+        if (success) {
+            File parent = f.getParentFile();
+            while (parent.isDirectory() && !parent.equals(root)
+                    && parent.listFiles().length == 0) {
+                parent.delete();
+                parent = parent.getParentFile();
+            }
+        }
+        return success;
     }
 
     /**
