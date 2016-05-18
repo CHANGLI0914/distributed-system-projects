@@ -7,6 +7,7 @@ import java.util.*;
 import rmi.*;
 import common.*;
 import storage.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Naming server.
 
@@ -42,6 +43,10 @@ public class NamingServer implements Service, Registration
 
     private Skeleton<Service> serviceSkeleton;
 
+    //List of locks that connect a path to a lock
+    private volatile ConcurrentHashMap<Path, ReadWriteLock> lockList;
+    //Replication Counter
+    private volatile ConcurrentHashMap<Path, Integer> copyCounter;
     /** Creates the naming server object.
 
         <p>
@@ -59,6 +64,9 @@ public class NamingServer implements Service, Registration
         InetSocketAddress serviceAddress =
                 new InetSocketAddress(NamingStubs.SERVICE_PORT);
         serviceSkeleton = new Skeleton<>(Service.class, this, serviceAddress);
+
+        lockList = new ConcurrentHashMap<Path, ReadWriteLock>();
+        copyCounter = new ConcurrentHashMap<Path, Integer>();
     }
 
     /** Starts the naming server.
@@ -111,17 +119,147 @@ public class NamingServer implements Service, Registration
          */
     }
 
+    public class ReadWriteLock {
+        private int readNum = 0;
+        private int writeNum = 0;
+        private int writeRequest = 0;
+
+        public synchronized void lockRead() throws InterruptedException {
+          while (!readAccess()) {
+            wait();
+          }
+          readNum ++;
+        }
+
+        private boolean readAccess() {
+          if (writeNum > 0 || writeRequest > 0) {
+            return false;
+          } else {
+            return true;
+          }
+        }
+
+        public synchronized void lockWrite() throws InterruptedException {
+          writeRequest ++;
+
+          while (!writeAccess()) {
+            wait();
+          }
+          writeRequest --;
+          writeNum ++;
+        }
+
+        private boolean writeAccess() {
+          if (readNum > 0 || writeNum > 0) {
+            return false;
+          } else {
+            return true;
+          }
+        }
+
+        private synchronized void unlockRead() {
+          readNum --;
+          // to wake up all waiting threads at the same time.
+          notifyAll();
+        }
+
+        private synchronized void unlockWrite() {
+          writeNum --;
+          notifyAll();
+        }
+    }
+
     // The following public methods are documented in Service.java.
     @Override
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
-    }
+        if (path == null) {
+          throw new NullPointerException("path is null!");
+        }
+        // $$$$$$$$$$$$$$$$$$$$$$ if I should check the path is valid
+
+        // find all the parents of current path
+        List<Path> pathList = pathParents(path);
+
+        for (int i = 0; i < pathList.size(); i++) {
+          if (lockList.get(pathList.get(i)) == null) {
+            lockList.put(pathList.get(i), new ReadWriteLock());
+          }
+        }
+        //enable to work with groups of objects
+        Collections.sort(pathList);
+
+        for (int i = 0; i < pathList.size(); i ++) {
+          if (exclusive && i == pathList.size() - 1)
+          {
+            try {
+              //if (!isDirectory(pathList.get(i)) {}
+              //$$$$$$$$$$$$$$$$$
+
+              lockList.get(pathList.get(i)).lockWrite();
+            } catch (InterruptedException e) {
+              return;
+            }
+          } else {
+            try {
+              lockList.get(pathList.get(i)).lockRead();
+              //if (!isDirectory(pathList.get(i))) {}
+              //$$$$$$$$$$$$$$$$$$
+
+            } catch (InterruptedException e) {
+              return;
+            }
+          }
+          }
+        }
+
 
     @Override
     public void unlock(Path path, boolean exclusive)
     {
-        throw new UnsupportedOperationException("not implemented");
+      if (path == null) {
+        throw new NullPointerException("path is null!");
+      }
+      // $$$$$$$$$$$$$$$$$$$$$$ if I should check the path is valid
+
+      List<Path> pathList = pathParents(path);
+
+      for (int i = 0; i < pathList.size(); i ++) {
+        if (lockList.get(pathList.get(i)) == null) {
+          lockList.put(pathList.get(i), new ReadWriteLock());
+        }
+      }
+
+      Collections.sort(pathList);
+      Collections.reverse(pathList);
+
+      for (int i = 0; i < pathList.size(); i++) {
+        if (exclusive && i == 0) {
+
+            lockList.get(pathList.get(i)).unlockWrite();
+
+        } else {
+
+            lockList.get(pathList.get(i)).unlockRead();
+
+        }
+      }
+    }
+
+
+    private List<Path> pathParents(Path path) {
+      ArrayList<Path> pathlist = new ArrayList<Path>();
+      pathlist.add(path);
+
+      while (true) {
+        try {
+          pathlist.add(path.parent());
+          path = path.parent();
+        } catch (IllegalArgumentException e) {
+          break;
+        }
+    }
+      return pathlist;
     }
 
     @Override
