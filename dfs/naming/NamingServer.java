@@ -37,6 +37,8 @@ public class NamingServer implements Service, Registration
 
     private FileTree fileTree;
 
+    private FileNode fileNode;
+
     private Hashtable<Command, Storage> serverTable;
 
     private Skeleton<Registration> regSkeleton;
@@ -46,7 +48,7 @@ public class NamingServer implements Service, Registration
     //List of locks that connect a path to a lock
     private volatile ConcurrentHashMap<Path, ReadWriteLock> lockList;
     //Replication Counter
-    private volatile ConcurrentHashMap<Path, Integer> copyCounter;
+    private volatile ConcurrentHashMap<Path, Integer> replicationCounter;
     /** Creates the naming server object.
 
         <p>
@@ -55,6 +57,7 @@ public class NamingServer implements Service, Registration
     public NamingServer()
     {
         fileTree = FileTree.getTree();
+        fileNode = fileTree.getRoot();
         serverTable = new Hashtable<>();
 
         InetSocketAddress regAddress =
@@ -66,7 +69,7 @@ public class NamingServer implements Service, Registration
         serviceSkeleton = new Skeleton<>(Service.class, this, serviceAddress);
 
         lockList = new ConcurrentHashMap<Path, ReadWriteLock>();
-        copyCounter = new ConcurrentHashMap<Path, Integer>();
+        replicationCounter = new ConcurrentHashMap<Path, Integer>();
     }
 
     /** Starts the naming server.
@@ -176,26 +179,28 @@ public class NamingServer implements Service, Registration
         if (path == null) {
           throw new NullPointerException("path is null!");
         }
-        // $$$$$$$$$$$$$$$$$$$$$$ if I should check the path is valid
+
+        if (!isValidPath(path)) {
+            throw new FileNotFoundException("The path is not valid.");
+        }
 
         // find all the parents of current path
         List<Path> pathList = pathParents(path);
 
+        //check if these parents have a ReadWriteLock. If not, assign one to them
         for (int i = 0; i < pathList.size(); i++) {
           if (lockList.get(pathList.get(i)) == null) {
             lockList.put(pathList.get(i), new ReadWriteLock());
           }
         }
-        //enable to work with groups of objects
+        //sort the list of parents
+        //Collections: enable to work with groups of objects
         Collections.sort(pathList);
 
         for (int i = 0; i < pathList.size(); i ++) {
           if (exclusive && i == pathList.size() - 1)
           {
             try {
-              //if (!isDirectory(pathList.get(i)) {}
-              //$$$$$$$$$$$$$$$$$
-
               lockList.get(pathList.get(i)).lockWrite();
             } catch (InterruptedException e) {
               return;
@@ -203,9 +208,6 @@ public class NamingServer implements Service, Registration
           } else {
             try {
               lockList.get(pathList.get(i)).lockRead();
-              //if (!isDirectory(pathList.get(i))) {}
-              //$$$$$$$$$$$$$$$$$$
-
             } catch (InterruptedException e) {
               return;
             }
@@ -220,7 +222,9 @@ public class NamingServer implements Service, Registration
       if (path == null) {
         throw new NullPointerException("path is null!");
       }
-      // $$$$$$$$$$$$$$$$$$$$$$ if I should check the path is valid
+      if (!isValidPath(path)) {
+          throw new IllegalArgumentException("The path is not valid.");
+      }
 
       List<Path> pathList = pathParents(path);
 
@@ -262,6 +266,19 @@ public class NamingServer implements Service, Registration
       return pathlist;
     }
 
+    private boolean isValidPath(Path file) {
+      //FileNode current = fileTree.getRoot();
+      FileNode current = fileNode;
+      for (String s : file) {
+        current = current.getChild(s);
+        if (current == null) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
     {
@@ -275,10 +292,15 @@ public class NamingServer implements Service, Registration
     @Override
     public String[] list(Path directory) throws FileNotFoundException
     {
+        lock (directory, false);
+
         FileNode node = fileTree.findNode(directory);
         if (node == null || !node.isDirectory()) {
             throw new FileNotFoundException();
         }
+
+        unlock(directory, false);
+
         return node.listChildren();
     }
 
@@ -377,6 +399,8 @@ public class NamingServer implements Service, Registration
          * Just delete all descendant files, as we assume the storage server
          * would delete all empty directories automatically.
          */
+        lock (path, true);
+
         try {
             for (FileNode file : node.descendantFileNodes()) {
                 for (Command command : file.commands()) {
@@ -390,6 +414,8 @@ public class NamingServer implements Service, Registration
         } catch (RMIException re) { return false; }
 
         node.getParent().deleteChild(node.getName());
+
+        unlock (path, true);
 
         return true;
     }
