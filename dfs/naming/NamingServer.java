@@ -41,9 +41,11 @@ public class NamingServer implements Service, Registration
 
     private Hashtable<Command, Storage> serverTable;
 
-    private Skeleton<Registration> regSkeleton;
+    private RegSkeleton<Registration> regSkeleton;
 
-    private Skeleton<Service> serviceSkeleton;
+    private ServiceSkeleton<Service> serviceSkeleton;
+
+    private Throwable stoppedCause;
 
     //List of locks that connect a path to a lock
     private volatile ConcurrentHashMap<Path, ReadWriteLock> lockList;
@@ -62,11 +64,12 @@ public class NamingServer implements Service, Registration
 
         InetSocketAddress regAddress =
                 new InetSocketAddress(NamingStubs.REGISTRATION_PORT);
-        regSkeleton = new Skeleton<>(Registration.class, this, regAddress);
+        regSkeleton = new RegSkeleton<>(Registration.class, this, regAddress);
 
         InetSocketAddress serviceAddress =
                 new InetSocketAddress(NamingStubs.SERVICE_PORT);
-        serviceSkeleton = new Skeleton<>(Service.class, this, serviceAddress);
+        serviceSkeleton =
+                new ServiceSkeleton<>(Service.class, this, serviceAddress);
 
         lockList = new ConcurrentHashMap<Path, ReadWriteLock>();
         replicationCounter = new ConcurrentHashMap<Path, Integer>();
@@ -100,10 +103,20 @@ public class NamingServer implements Service, Registration
      */
     public void stop()
     {
-        regSkeleton.stop();
-        serviceSkeleton.stop();
+        if (!regSkeleton.isStopped) {
+            regSkeleton.stop();
+        }
+        if (!serviceSkeleton.isStopped) {
+            serviceSkeleton.stop();
+        }
         fileTree.deleteAllNodes();
-        stopped(null);  // TODO: I think this is not correct
+        /**
+         * Actually using this way to call stopped() is not so correct.
+         * We don't wait until both two skeletons are stopped. But as the
+         * interface here is not well designed, doing that would require a
+         * lot of ugly code. So, we just use this.
+         */
+        stopped(getStoppedCause());
     }
 
     /** Indicates that the server has completely shut down.
@@ -117,9 +130,14 @@ public class NamingServer implements Service, Registration
      */
     protected void stopped(Throwable cause)
     {
-        /**
-         * TODO: Not sure where and how should we call this method.
-         */
+    }
+
+    protected void setStoppedCause(Throwable cause) {
+        this.stoppedCause = cause;
+    }
+
+    protected Throwable getStoppedCause() {
+        return this.stoppedCause;
     }
 
     public class ReadWriteLock {
@@ -459,5 +477,61 @@ public class NamingServer implements Service, Registration
             }
         }
         return fileExisted.toArray(new Path[0]);
+    }
+}
+
+class RegSkeleton<T> extends Skeleton<T> {
+
+    private NamingServer namingServer;
+
+    public boolean isStopped;
+
+    public RegSkeleton(Class<T> c, T server) {
+        super(c, server);
+
+        isStopped = false;
+        namingServer = (NamingServer) server;
+    }
+
+    public RegSkeleton(Class<T> c, T server, InetSocketAddress address) {
+        super(c, server, address);
+
+        isStopped = false;
+        namingServer = (NamingServer) server;
+    }
+
+    @Override
+    protected void stopped(Throwable cause) {
+        this.isStopped = true;
+        if (cause != null) this.namingServer.setStoppedCause(cause);
+        namingServer.stop();
+    }
+}
+
+class ServiceSkeleton<T> extends Skeleton<T> {
+
+    private NamingServer namingServer;
+
+    public boolean isStopped;
+
+    public ServiceSkeleton(Class<T> c, T server) {
+        super(c, server);
+
+        isStopped = false;
+        namingServer = (NamingServer) server;
+    }
+
+    public ServiceSkeleton(Class<T> c, T server, InetSocketAddress address) {
+        super(c, server, address);
+
+        isStopped = false;
+        namingServer = (NamingServer) server;
+    }
+
+    @Override
+    protected void stopped(Throwable cause) {
+        this.isStopped = true;
+        if (cause != null) this.namingServer.setStoppedCause(cause);
+        namingServer.stop();
     }
 }

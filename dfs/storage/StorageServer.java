@@ -19,8 +19,9 @@ public class StorageServer implements Storage, Command
 {
 
     private final File root;
-    private final Skeleton<Storage> storageSkeleton;
-    private final Skeleton<Command> cmdSkeleton;
+    private final StorageSkeleton<Storage> storageSkeleton;
+    private final CommandSkeleton<Command> cmdSkeleton;
+    private Throwable stoppedCause;
 
     /** Creates a storage server, given a directory on the local filesystem, and
         ports to use for the client and command interfaces.
@@ -44,17 +45,17 @@ public class StorageServer implements Storage, Command
         this.root = root;
 
         if (client_port != 0) {
-            storageSkeleton = new Skeleton<>(
+            storageSkeleton = new StorageSkeleton<>(
                     Storage.class, this, new InetSocketAddress(client_port));
         } else {
-            storageSkeleton = new Skeleton<>(Storage.class, this);
+            storageSkeleton = new StorageSkeleton<>(Storage.class, this);
         }
 
         if (command_port != 0) {
-            cmdSkeleton = new Skeleton<>(
+            cmdSkeleton = new CommandSkeleton<>(
                     Command.class, this, new InetSocketAddress(command_port));
         } else {
-            cmdSkeleton = new Skeleton<>(Command.class, this);
+            cmdSkeleton = new CommandSkeleton<>(Command.class, this);
         }
     }
 
@@ -141,9 +142,13 @@ public class StorageServer implements Storage, Command
      */
     public void stop()
     {
-        cmdSkeleton.stop();
-        storageSkeleton.stop();
-        stopped(null);      // TODO: May not correct to call it here
+        if (!cmdSkeleton.isStopped) {
+            cmdSkeleton.stop();
+        }
+        if (!storageSkeleton.isStopped) {
+            storageSkeleton.stop();
+        }
+        stopped(getStoppedCause());
     }
 
     /** Called when the storage server has shut down.
@@ -153,7 +158,14 @@ public class StorageServer implements Storage, Command
      */
     protected void stopped(Throwable cause)
     {
-        // TODO: Not sure where and how should we call this
+    }
+
+    protected void setStoppedCause(Throwable cause) {
+        this.stoppedCause = cause;
+    }
+
+    protected Throwable getStoppedCause() {
+        return this.stoppedCause;
     }
 
     // The following methods are documented in Storage.java.
@@ -316,5 +328,61 @@ public class StorageServer implements Storage, Command
           offset  += readby;
         }
         return true;
+    }
+}
+
+class StorageSkeleton<T> extends Skeleton<T> {
+
+    private StorageServer storageServer;
+
+    public boolean isStopped;
+
+    public StorageSkeleton(Class<T> c, T server) {
+        super(c, server);
+
+        isStopped = false;
+        storageServer = (StorageServer) server;
+    }
+
+    public StorageSkeleton(Class<T> c, T server, InetSocketAddress address) {
+        super(c, server, address);
+
+        isStopped = false;
+        storageServer = (StorageServer) server;
+    }
+
+    @Override
+    protected void stopped(Throwable cause) {
+        this.isStopped = true;
+        if (cause != null) this.storageServer.setStoppedCause(cause);
+        storageServer.stop();
+    }
+}
+
+class CommandSkeleton<T> extends Skeleton<T> {
+
+    private StorageServer storageServer;
+
+    public boolean isStopped;
+
+    public CommandSkeleton(Class<T> c, T server) {
+        super(c, server);
+
+        isStopped = false;
+        storageServer = (StorageServer) server;
+    }
+
+    public CommandSkeleton(Class<T> c, T server, InetSocketAddress address) {
+        super(c, server, address);
+
+        isStopped = false;
+        storageServer = (StorageServer) server;
+    }
+
+    @Override
+    protected void stopped(Throwable cause) {
+        this.isStopped = true;
+        if (cause != null) this.storageServer.setStoppedCause(cause);
+        storageServer.stop();
     }
 }
