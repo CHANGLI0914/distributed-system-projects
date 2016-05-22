@@ -265,11 +265,23 @@ public class StorageServer implements Storage, Command
         File f = path.toFile(root);
         if (f.equals(root)) return false;
 
+        boolean success;
         if (!f.isDirectory()) {
-            return f.delete();
+            success = f.delete();
         } else {
-            return deleteDirectory(f);
+            success = deleteDirectory(f);
         }
+
+        // Always delete empty directories
+        if (success) {
+            File parent = f.getParentFile();
+            while (parent.isDirectory() && !parent.equals(root)
+                    && parent.listFiles().length == 0) {
+                parent.delete();
+                parent = parent.getParentFile();
+            }
+        }
+        return success;
     }
 
     /**
@@ -292,6 +304,25 @@ public class StorageServer implements Storage, Command
     public synchronized boolean copy(Path file, Storage server)
         throws RMIException, FileNotFoundException, IOException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (file == null || server == null)
+            throw new NullPointerException();
+
+        // delete the file if it exists
+        File f = file.toFile(root);
+        long fsize = server.size(file);
+        if (f.exists()) {
+          delete (file);
+        }
+        // create the file and make copy
+        create(file);
+        byte[] btoCopy;
+        long offset = 0;
+        while (offset < fsize) {
+          int readby = (int) Math.min(Integer.MAX_VALUE, fsize - offset);
+          btoCopy = server.read (file, offset, readby);
+          write (file, offset, btoCopy);
+          offset  += readby;
+        }
+        return true;
     }
 }

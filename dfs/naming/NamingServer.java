@@ -7,6 +7,7 @@ import java.util.*;
 import rmi.*;
 import common.*;
 import storage.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Naming server.
 
@@ -36,12 +37,18 @@ public class NamingServer implements Service, Registration
 
     private FileTree fileTree;
 
+    private FileNode fileNode;
+
     private Hashtable<Command, Storage> serverTable;
 
     private Skeleton<Registration> regSkeleton;
 
     private Skeleton<Service> serviceSkeleton;
 
+    //List of locks that connect a path to a lock
+    private volatile ConcurrentHashMap<Path, ReadWriteLock> lockList;
+    //Replication Counter
+    private volatile ConcurrentHashMap<Path, Integer> replicationCounter;
     /** Creates the naming server object.
 
         <p>
@@ -50,6 +57,7 @@ public class NamingServer implements Service, Registration
     public NamingServer()
     {
         fileTree = FileTree.getTree();
+        fileNode = fileTree.getRoot();
         serverTable = new Hashtable<>();
 
         InetSocketAddress regAddress =
@@ -59,6 +67,9 @@ public class NamingServer implements Service, Registration
         InetSocketAddress serviceAddress =
                 new InetSocketAddress(NamingStubs.SERVICE_PORT);
         serviceSkeleton = new Skeleton<>(Service.class, this, serviceAddress);
+
+        lockList = new ConcurrentHashMap<Path, ReadWriteLock>();
+        replicationCounter = new ConcurrentHashMap<Path, Integer>();
     }
 
     /** Starts the naming server.
@@ -91,6 +102,7 @@ public class NamingServer implements Service, Registration
     {
         regSkeleton.stop();
         serviceSkeleton.stop();
+        fileTree.deleteAllNodes();
         stopped(null);  // TODO: I think this is not correct
     }
 
@@ -110,18 +122,162 @@ public class NamingServer implements Service, Registration
          */
     }
 
+    public class ReadWriteLock {
+        private int readNum = 0;
+        private int writeNum = 0;
+        private int writeRequest = 0;
+
+        public synchronized void lockRead() throws InterruptedException {
+          while (!readAccess()) {
+            wait();
+          }
+          readNum ++;
+        }
+
+        private boolean readAccess() {
+          if (writeNum > 0 || writeRequest > 0) {
+            return false;
+          } else {
+            return true;
+          }
+        }
+
+        public synchronized void lockWrite() throws InterruptedException {
+          writeRequest ++;
+
+          while (!writeAccess()) {
+            wait();
+          }
+          writeRequest --;
+          writeNum ++;
+        }
+
+        private boolean writeAccess() {
+          if (readNum > 0 || writeNum > 0) {
+            return false;
+          } else {
+            return true;
+          }
+        }
+
+        private synchronized void unlockRead() {
+          readNum --;
+          // to wake up all waiting threads at the same time.
+          notifyAll();
+        }
+
+        private synchronized void unlockWrite() {
+          writeNum --;
+          notifyAll();
+        }
+    }
+
     // The following public methods are documented in Service.java.
     @Override
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
-    }
+        if (path == null) {
+          throw new NullPointerException("path is null!");
+        }
+
+        if (!isValidPath(path)) {
+            throw new FileNotFoundException("The path is not valid.");
+        }
+
+        // find all the parents of current path
+        List<Path> pathList = pathParents(path);
+
+        //check if these parents have a ReadWriteLock. If not, assign one to them
+        for (int i = 0; i < pathList.size(); i++) {
+          if (lockList.get(pathList.get(i)) == null) {
+            lockList.put(pathList.get(i), new ReadWriteLock());
+          }
+        }
+        //sort the list of parents
+        //Collections: enable to work with groups of objects
+        Collections.sort(pathList);
+
+        for (int i = 0; i < pathList.size(); i ++) {
+          if (exclusive && i == pathList.size() - 1)
+          {
+            try {
+              lockList.get(pathList.get(i)).lockWrite();
+            } catch (InterruptedException e) {
+              return;
+            }
+          } else {
+            try {
+              lockList.get(pathList.get(i)).lockRead();
+            } catch (InterruptedException e) {
+              return;
+            }
+          }
+          }
+        }
+
 
     @Override
     public void unlock(Path path, boolean exclusive)
     {
-        throw new UnsupportedOperationException("not implemented");
+      if (path == null) {
+        throw new NullPointerException("path is null!");
+      }
+      if (!isValidPath(path)) {
+          throw new IllegalArgumentException("The path is not valid.");
+      }
+
+      List<Path> pathList = pathParents(path);
+
+      for (int i = 0; i < pathList.size(); i ++) {
+        if (lockList.get(pathList.get(i)) == null) {
+          lockList.put(pathList.get(i), new ReadWriteLock());
+        }
+      }
+
+      Collections.sort(pathList);
+      Collections.reverse(pathList);
+
+      for (int i = 0; i < pathList.size(); i++) {
+        if (exclusive && i == 0) {
+
+            lockList.get(pathList.get(i)).unlockWrite();
+
+        } else {
+
+            lockList.get(pathList.get(i)).unlockRead();
+
+        }
+      }
     }
+
+
+    private List<Path> pathParents(Path path) {
+      ArrayList<Path> pathlist = new ArrayList<Path>();
+      pathlist.add(path);
+
+      while (true) {
+        try {
+          pathlist.add(path.parent());
+          path = path.parent();
+        } catch (IllegalArgumentException e) {
+          break;
+        }
+    }
+      return pathlist;
+    }
+
+    private boolean isValidPath(Path file) {
+      //FileNode current = fileTree.getRoot();
+      FileNode current = fileNode;
+      for (String s : file) {
+        current = current.getChild(s);
+        if (current == null) {
+          return false;
+        }
+      }
+      return true;
+    }
+
 
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
@@ -136,11 +292,20 @@ public class NamingServer implements Service, Registration
     @Override
     public String[] list(Path directory) throws FileNotFoundException
     {
+        lock (directory, false);
+
         FileNode node = fileTree.findNode(directory);
         if (node == null || !node.isDirectory()) {
             throw new FileNotFoundException();
         }
+
+        unlock(directory, false);
+
         return node.listChildren();
+    }
+
+    private Command pickOneCommand() {
+        return serverTable.keys().nextElement();
     }
 
     @Override
@@ -150,11 +315,26 @@ public class NamingServer implements Service, Registration
         if (serverTable.isEmpty()) {
             throw new IllegalStateException();
         }
+        if (file.isRoot()) {
+            return false;
+        }
+
         FileNode node = fileTree.findNode(file.parent());
         if (node == null || !node.isDirectory()) {
             throw new FileNotFoundException();
         }
-        return node.getCommand().create(file);
+        if (node.hasChild(file.last())) {
+            return false;
+        }
+
+        Command storageServer = pickOneCommand();
+        if(storageServer.create(file)) {
+            FileNode fileCreated = node.addChild(file.last(), true);
+            fileCreated.addCommand(storageServer);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     @Override
@@ -163,11 +343,22 @@ public class NamingServer implements Service, Registration
         if (serverTable.isEmpty()) {
             throw new IllegalStateException();
         }
+        if (directory.isRoot()) {
+            return false;
+        }
+
         FileNode node = fileTree.findNode(directory.parent());
         if (node == null || !node.isDirectory()) {
             throw new FileNotFoundException();
         }
 
+        if (node.hasChild(directory.last())) {
+            return false;
+        } else {
+            node.addChild(directory.last(), false);
+            return true;
+        }
+/*
         try {
             /**
              * Code here is a little bit ugly. When we need to create a new
@@ -181,15 +372,17 @@ public class NamingServer implements Service, Registration
              * Additionally, if any RMIEXceptions are thrown during this
              * process, an inconsistency might happen.
              */
-            Path childPath = new Path(directory, "tmp.txt");
+  /*          Path childPath = new Path(directory, "tmp.txt");
             if (node.getCommand().create(childPath)) {
                 node.getCommand().delete(childPath);
-                node.addChild(directory.last(), false);
+                FileNode child = node.addChild(directory.last(), false);
+                child.addCommand(node.getCommand());
                 return true;
             } else {
                 return false;
             }
         } catch (RMIException re) { return false; }
+    */
     }
 
     @Override
@@ -201,15 +394,28 @@ public class NamingServer implements Service, Registration
         if (node == null) {
             throw new FileNotFoundException();
         }
+
+        /**
+         * Just delete all descendant files, as we assume the storage server
+         * would delete all empty directories automatically.
+         */
+        lock (path, true);
+
         try {
-            for (Command command : node.commands()) {
-                if (!command.delete(path)) {
-                    return false;
+            for (FileNode file : node.descendantFileNodes()) {
+                for (Command command : file.commands()) {
+                    if (!command.delete(path)) {
+                        return false;
+                    }
+                    node.deleteStorage(command);
                 }
-                node.deleteStorage(command);
+                file.getParent().deleteChild(file.getName());
             }
         } catch (RMIException re) { return false; }
+
         node.getParent().deleteChild(node.getName());
+
+        unlock (path, true);
 
         return true;
     }
@@ -218,7 +424,7 @@ public class NamingServer implements Service, Registration
     public Storage getStorage(Path file) throws FileNotFoundException
     {
         FileNode node = fileTree.findNode(file);
-        if (node == null) {
+        if (node == null || node.isDirectory()) {
             throw new FileNotFoundException();
         }
         return serverTable.get(node.getCommand());
