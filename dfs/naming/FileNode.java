@@ -29,11 +29,7 @@ public class FileNode {
     private final List<Command> commandList;
 
     private final List<FileNode> children;
-    
-    private List<FileNode> copies;
-    
-    private FileNode copyancestor;
-    
+
     private Integer visittime;
 
     /**
@@ -55,9 +51,6 @@ public class FileNode {
             this.children = null;
         }
              
-        this.copyancestor=null;
-        
-        copies=new ArrayList<>();
     }
 
     public String getName() {

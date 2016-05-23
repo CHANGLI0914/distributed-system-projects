@@ -213,7 +213,6 @@ public class NamingServer implements Service, Registration
             	  filenode.clearVisittime();
             	  Integer commandnum=filenode.commandSize();
             	  if(commandnum>1){
-            		  System.out.println(commandnum);
             		  removefile(pathList.get(i));
             	  }
               } 
@@ -253,7 +252,7 @@ public class NamingServer implements Service, Registration
             	availableStorage.add(c);
             }
         }
-        if(availableStorage.size()>=0){
+        if(availableStorage.size()>0){
         	try{
         	Command nextServer=availableStorage.get(0);
         	nextServer.copy(path, serverTable.get(unavailableStorage.get(0)));
@@ -270,14 +269,15 @@ public class NamingServer implements Service, Registration
     public void removefile(Path path) throws RMIException{
     	FileNode filenode=fileTree.findNode(path);
     	List<Command> availableStorage = new ArrayList<>(filenode.commands());
+
         availableStorage.remove(0); 
         System.out.println("avai:"+availableStorage.size());
         System.out.println("still	"+filenode.commandSize());
         for (Command c : availableStorage) {
             c.delete(path);
             filenode.deleteStorage(c);
-            System.out.println("success on "+c.toString());
         }
+        System.out.println(filenode.commandSize());
 
     }
 
@@ -453,6 +453,7 @@ public class NamingServer implements Service, Registration
     @Override
     public boolean delete(Path path) throws FileNotFoundException, RMIException
     {
+    	System.out.println("delete here");
         if (path.isRoot()) return false;
 
         FileNode node = fileTree.findNode(path);
@@ -464,10 +465,11 @@ public class NamingServer implements Service, Registration
          * Just delete all descendant files, as we assume the storage server
          * would delete all empty directories automatically.
          */
-        lock (path, true);
+        //lock (path, true);
 
         try {
             for (FileNode file : node.descendantFileNodes()) {
+            	 System.out.println(file.commandSize());
                 for (Command command : file.commands()) {
                     if (!command.delete(path)) {
                         return false;
@@ -480,8 +482,7 @@ public class NamingServer implements Service, Registration
 
         node.getParent().deleteChild(node.getName());
 
-        unlock (path, true);
-
+        //unlock (path, true);
         return true;
     }
 
