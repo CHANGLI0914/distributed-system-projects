@@ -30,6 +30,8 @@ public class FileNode {
 
     private final List<FileNode> children;
 
+    private Integer visittime;
+
     /**
      * Constructor should never be called out of FileNode or FileTree
      *
@@ -42,11 +44,13 @@ public class FileNode {
         this.isFile = isFile;
         this.parent = parent;
         this.commandList = new ArrayList<>();
+        this.visittime=0;
         if (!isFile) {
             this.children = new ArrayList<>();
         } else {
             this.children = null;
         }
+             
     }
 
     public String getName() {
@@ -179,6 +183,7 @@ public class FileNode {
         if (commandList.isEmpty()) return null;
         else return commandList.get(0);
     }
+    
 
     public void deleteStorage(Command command) {
         if (!this.isFile) throw new IllegalAccessError();
@@ -190,5 +195,17 @@ public class FileNode {
         if (!this.isFile) throw new IllegalAccessError();
 
         return commandList;
+    }
+    
+    public Integer getVisittime(){
+    	return visittime;
+    	
+    }
+    public void addVisittime(){
+    	visittime+=1;
+    }
+    
+    public void clearVisittime(){
+    	visittime=0;
     }
 }

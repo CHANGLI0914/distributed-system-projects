@@ -1,8 +1,11 @@
 package common;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /** Distributed filesystem paths.
 
@@ -49,9 +52,8 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
                   "separator, colon, or is empty");
         }
 
-        pathComponents = new ArrayList<>();
-        // add an existing path
-        pathComponents.addAll(path.pathComponents);
+        pathComponents = new ArrayList<String>(path.pathComponents);
+
         // add new path component
         pathComponents.add(component);
     }
@@ -98,8 +100,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     }
 
     public Path(ArrayList<String> pathComponents) {
-        this.pathComponents = new ArrayList<>();
-    	this.pathComponents.addAll(pathComponents);
+        this.pathComponents = new ArrayList<String>(pathComponents);
     }
 
     /** Returns an iterator over the components of the path.
@@ -210,8 +211,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
             throw new IllegalArgumentException ("root directory has no parent!");
         }
 
-        ArrayList<String> parentpath = new ArrayList<>();
-        parentpath.addAll(pathComponents);
+        ArrayList<String> parentpath = new ArrayList<String>(pathComponents);
 
         // remove the last one
         parentpath.remove(pathComponents.size()-1);
