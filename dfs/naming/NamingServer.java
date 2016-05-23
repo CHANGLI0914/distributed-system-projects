@@ -1,14 +1,18 @@
 package naming;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
-
-import rmi.*;
-import common.*;
-import storage.*;
-
+import java.io.FileNotFoundException;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Hashtable;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+
+import common.Path;
+import rmi.RMIException;
+import rmi.Skeleton;
+import storage.Command;
+import storage.Storage;
 
 /** Naming server.
 
@@ -469,13 +473,15 @@ public class NamingServer implements Service, Registration
 
         try {
             for (FileNode file : node.descendantFileNodes()) {
-            	 System.out.println(file.commandSize());
-                for (Command command : file.commands()) {
+
+                while (file.commandSize() != 0) {
+                    Command command = file.commands().get(0);
                     if (!command.delete(path)) {
                         return false;
                     }
                     node.deleteStorage(command);
                 }
+
                 file.getParent().deleteChild(file.getName());
             }
         } catch (RMIException re) { return false; }
