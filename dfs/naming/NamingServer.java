@@ -475,7 +475,6 @@ public class NamingServer implements Service, Registration
     @Override
     public boolean delete(Path path) throws FileNotFoundException, RMIException
     {
-    	System.out.println("delete here");
         if (path.isRoot()) return false;
 
         FileNode node = fileTree.findNode(path);
@@ -491,13 +490,12 @@ public class NamingServer implements Service, Registration
 
         try {
             for (FileNode file : node.descendantFileNodes()) {
-
                 while (file.commandSize() != 0) {
                     Command command = file.commands().get(0);
                     if (!command.delete(path)) {
                         return false;
                     }
-                    node.deleteStorage(command);
+                    file.deleteStorage(command);
                 }
 
                 file.getParent().deleteChild(file.getName());
