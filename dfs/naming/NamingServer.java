@@ -7,6 +7,7 @@ import java.util.*;
 import rmi.*;
 import common.*;
 import storage.*;
+
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Naming server.
@@ -127,6 +128,7 @@ public class NamingServer implements Service, Registration
         private int writeNum = 0;
         private int writeRequest = 0;
 
+        
         public synchronized void lockRead() throws InterruptedException {
           while (!readAccess()) {
             wait();
@@ -159,7 +161,7 @@ public class NamingServer implements Service, Registration
             return true;
           }
         }
-
+        
         private synchronized void unlockRead() {
           readNum --;
           // to wake up all waiting threads at the same time.
@@ -170,11 +172,15 @@ public class NamingServer implements Service, Registration
           writeNum --;
           notifyAll();
         }
+        public int getReadNum(){
+        	return readNum;
+        }
+        
     }
 
     // The following public methods are documented in Service.java.
     @Override
-    public void lock(Path path, boolean exclusive) throws FileNotFoundException
+    public void lock(Path path, boolean exclusive) throws FileNotFoundException, RMIException
     {
         if (path == null) {
           throw new NullPointerException("path is null!");
@@ -186,7 +192,6 @@ public class NamingServer implements Service, Registration
 
         // find all the parents of current path
         List<Path> pathList = pathParents(path);
-
         //check if these parents have a ReadWriteLock. If not, assign one to them
         for (int i = 0; i < pathList.size(); i++) {
           if (lockList.get(pathList.get(i)) == null) {
@@ -202,19 +207,79 @@ public class NamingServer implements Service, Registration
           {
             try {
               lockList.get(pathList.get(i)).lockWrite();
-            } catch (InterruptedException e) {
+              
+              FileNode filenode=fileTree.findNode(pathList.get(i));
+              if(filenode.isFile()){
+            	  filenode.clearVisittime();
+            	  Integer commandnum=filenode.commandSize();
+            	  if(commandnum>1){
+            		  removefile(pathList.get(i));
+            	  }
+              } 
+            }
+            	catch (InterruptedException e) {
               return;
             }
           } else {
             try {
               lockList.get(pathList.get(i)).lockRead();
+              
+              //if is file, maybe replication
+              FileNode filenode=fileTree.findNode(pathList.get(i));
+              if(filenode.isFile()){
+            	  Integer num=filenode.getVisittime();
+            	  if(num>=20){
+            		  filenode.clearVisittime();
+            		  replicatefile(pathList.get(i));
+            	  }
+                  filenode.addVisittime();
+              }
+ 
             } catch (InterruptedException e) {
               return;
             }
           }
           }
+    }
+    
+    public void replicatefile(Path path) throws InterruptedException, FileNotFoundException{
+    	
+    	FileNode filenode=fileTree.findNode(path);
+    	List<Command> unavailableStorage = filenode.commands();
+        List<Command> availableStorage = new ArrayList<>();
+        for (Command c :serverTable.keySet() ) {
+            if (!unavailableStorage.contains(c)) {
+            	availableStorage.add(c);
+            }
         }
+        if(availableStorage.size()>0){
+        	try{
+        	Command nextServer=availableStorage.get(0);
+        	nextServer.copy(path, serverTable.get(unavailableStorage.get(0)));
+        	filenode.addCommand(nextServer);
+        	}
+        	catch(Exception e){
+        		e.printStackTrace();
+        	}
 
+        }     	
+        
+    }
+    
+    public void removefile(Path path) throws RMIException{
+    	FileNode filenode=fileTree.findNode(path);
+    	List<Command> availableStorage = new ArrayList<>(filenode.commands());
+
+        availableStorage.remove(0); 
+        System.out.println("avai:"+availableStorage.size());
+        System.out.println("still	"+filenode.commandSize());
+        for (Command c : availableStorage) {
+            c.delete(path);
+            filenode.deleteStorage(c);
+        }
+        System.out.println(filenode.commandSize());
+
+    }
 
     @Override
     public void unlock(Path path, boolean exclusive)
@@ -239,12 +304,12 @@ public class NamingServer implements Service, Registration
 
       for (int i = 0; i < pathList.size(); i++) {
         if (exclusive && i == 0) {
-
             lockList.get(pathList.get(i)).unlockWrite();
 
         } else {
-
             lockList.get(pathList.get(i)).unlockRead();
+            
+            // if a file has been read more than 20 times, duplicate it.
 
         }
       }
@@ -277,7 +342,7 @@ public class NamingServer implements Service, Registration
       }
       return true;
     }
-
+    
 
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
@@ -290,7 +355,7 @@ public class NamingServer implements Service, Registration
     }
 
     @Override
-    public String[] list(Path directory) throws FileNotFoundException
+    public String[] list(Path directory) throws FileNotFoundException, RMIException
     {
         lock (directory, false);
 
@@ -386,8 +451,9 @@ public class NamingServer implements Service, Registration
     }
 
     @Override
-    public boolean delete(Path path) throws FileNotFoundException
+    public boolean delete(Path path) throws FileNotFoundException, RMIException
     {
+    	System.out.println("delete here");
         if (path.isRoot()) return false;
 
         FileNode node = fileTree.findNode(path);
@@ -399,10 +465,11 @@ public class NamingServer implements Service, Registration
          * Just delete all descendant files, as we assume the storage server
          * would delete all empty directories automatically.
          */
-        lock (path, true);
+        //lock (path, true);
 
         try {
             for (FileNode file : node.descendantFileNodes()) {
+            	 System.out.println(file.commandSize());
                 for (Command command : file.commands()) {
                     if (!command.delete(path)) {
                         return false;
@@ -415,8 +482,7 @@ public class NamingServer implements Service, Registration
 
         node.getParent().deleteChild(node.getName());
 
-        unlock (path, true);
-
+        //unlock (path, true);
         return true;
     }
 
