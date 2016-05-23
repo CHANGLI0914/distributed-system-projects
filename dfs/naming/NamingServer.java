@@ -293,13 +293,10 @@ public class NamingServer implements Service, Registration
     	List<Command> availableStorage = new ArrayList<>(filenode.commands());
 
         availableStorage.remove(0); 
-        System.out.println("avai:"+availableStorage.size());
-        System.out.println("still	"+filenode.commandSize());
         for (Command c : availableStorage) {
             c.delete(path);
             filenode.deleteStorage(c);
         }
-        System.out.println(filenode.commandSize());
 
     }
 
