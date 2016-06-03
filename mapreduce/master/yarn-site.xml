@@ -10,6 +10,11 @@
     </property>
 
     <property>
+      <name>yarn.resourcemanager.hostname</name>
+      <value>master</value>
+    </property>
+
+    <property>
     <description>
       Number of seconds after an application finishes before the nodemanager's
       DeletionService will delete the application's localized file directory

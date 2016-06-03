@@ -55,7 +55,7 @@ RUN cp $HADOOP_PREFIX/etc/hadoop/*.xml $HADOOP_PREFIX/input
 
 # pseudo distributed
 ADD core-site.xml.template $HADOOP_PREFIX/etc/hadoop/core-site.xml.template
-#RUN sed s/HOSTNAME/master/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > #/usr/local/hadoop/etc/hadoop/core-site.xml
+# RUN sed s/HOSTNAME/master/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > #/usr/local/hadoop/etc/hadoop/core-site.xml
 ADD core-site.xml $HADOOP_PREFIX/etc/hadoop/core-site.xml
 ADD hdfs-site.xml $HADOOP_PREFIX/etc/hadoop/hdfs-site.xml
 ADD mapred-site.xml $HADOOP_PREFIX/etc/hadoop/mapred-site.xml
@@ -100,7 +100,7 @@ RUN echo "Port 2122" >> /etc/ssh/sshd_config
 #RUN service sshd start && $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -mkdir -p /user/root
 #RUN service sshd start && $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -put $HADOOP_PREFIX/etc/hadoop/ input
 
-#CMD ["/etc/bootstrap.sh", "-d"]
+CMD ["/etc/bootstrap.sh", "-d"]
 
 # Hdfs ports
 EXPOSE 50010 50020 50070 50075 50090 8020 9000

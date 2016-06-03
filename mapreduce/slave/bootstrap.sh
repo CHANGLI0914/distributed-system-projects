@@ -14,6 +14,8 @@ service sshd start
 
 $HADOOP_PREFIX/sbin/hadoop-daemon.sh start datanode
 $HADOOP_PREFIX/sbin/yarn-daemon.sh start tasktracker
+$HADOOP_PREFIX/sbin/start-dfs.sh
+$HADOOP_PREFIX/sbin/start-yarn.sh
 
 if [[ $1 == "-d" ]]; then
   while true; do sleep 1000; done
