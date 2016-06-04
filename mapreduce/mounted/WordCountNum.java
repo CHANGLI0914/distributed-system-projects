@@ -26,11 +26,13 @@ public class WordCountNum {
                     ) throws IOException, InterruptedException {
       StringTokenizer itr = new StringTokenizer(value.toString());
       StringTokenizer itr2 = new StringTokenizer(value.toString());
-      itr2.nextToken();
-      while (itr2.hasMoreTokens()) {
-        word.set(itr.nextToken()+" "+itr2.nextToken());
-        context.write(word, one);
-      }
+      if(itr2.hasMoreTokens()){
+       itr2.nextToken();
+       while (itr2.hasMoreTokens()) {
+          word.set(itr.nextToken()+" "+itr2.nextToken());
+          context.write(word, one);
+       }
+     }
     }
   }
 

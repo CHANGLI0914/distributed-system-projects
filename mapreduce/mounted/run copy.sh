@@ -20,14 +20,14 @@ jar cf wc.jar *.class
 
 # Copy files to the dfs
 $HADOOP_PREFIX/bin/hadoop dfs -copyFromLocal wc.jar /
-$HADOOP_PREFIX/bin/hadoop dfs -copyFromLocal Moby-Dick.txt /
+$HADOOP_PREFIX/bin/hadoop dfs -copyFromLocal input.txt /
 
 
 # Run
-$HADOOP_PREFIX/bin/hadoop jar wc.jar WordCountBiagram /Moby-Dick.txt /out_1
-$HADOOP_PREFIX/bin/hadoop jar wc.jar WordCountTopN /Moby-Dick.txt /out_2 10
-$HADOOP_PREFIX/bin/hadoop jar wc.jar WordCountNum /Moby-Dick.txt /out_3
-$HADOOP_PREFIX/bin/hadoop jar wc.jar WordCountPercent /Moby-Dick.txt /out_4
+$HADOOP_PREFIX/bin/hadoop jar wc.jar WordCountBiagram /input.txt /out_1
+$HADOOP_PREFIX/bin/hadoop jar wc.jar WordCountTopN /input.txt /out_2 10
+$HADOOP_PREFIX/bin/hadoop jar wc.jar WordCountNum /input.txt /out_3
+$HADOOP_PREFIX/bin/hadoop jar wc.jar WordCountPercent /input.txt /out_4
 
 # Cat results
 echo "Result of WordCountBiagram:"

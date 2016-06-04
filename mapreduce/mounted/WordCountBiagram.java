@@ -23,11 +23,13 @@ public class WordCountBiagram {
                     ) throws IOException, InterruptedException {
       StringTokenizer itr = new StringTokenizer(value.toString());
       StringTokenizer itr2 = new StringTokenizer(value.toString());
+       if(itr2.hasMoreTokens()){
       itr2.nextToken();
       while (itr2.hasMoreTokens()) {
         word.set(itr.nextToken()+" "+itr2.nextToken());
         context.write(word, one);
       }
+    }
     }
   }
 

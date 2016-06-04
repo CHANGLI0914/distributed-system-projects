@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Build Docker images
-# docker build -t slaveimage:1.0 ./slave
-# docker build -t masterimage:1.0 ./master
-# docker network create -d bridge mynetwork
+docker build -t slaveimage:1.0 ./slave
+docker build -t masterimage:1.0 ./master
+docker network create -d bridge mynetwork
 
 # Start 4 Slave Nodes
 docker run -id --net=mynetwork --hostname slave1 --name slave1 slaveimage:1.0
